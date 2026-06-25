@@ -20,7 +20,7 @@ SRC_DIR = forth
 SRC_NAMES = base debug v asm gfx gfxdemo rnd sin ls turtle fractals \
     sprite doloop sys labels mml mmldemo sid spritedemo \
     require compat timer float viceutil turnkey \
-    wordlist io open dos see accept
+    wordlist io open dos iec see accept
 SRCS = $(addprefix $(SRC_DIR)/,$(addsuffix .fs,$(SRC_NAMES)))
 
 TEST_SRC_NAMES = test testcore testcoreplus testcoreext testexception tester testsee 1

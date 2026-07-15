@@ -2,3 +2,4 @@
 *.prg
 build
 deploy
+/doc64/

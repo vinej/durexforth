@@ -28,6 +28,9 @@ include::sid.adoc[]
 == Music
 include::mml.adoc[]
 
+== Games and Interrupts
+include::irq.adoc[]
+
 == Assembler
 include::asm.adoc[]
 

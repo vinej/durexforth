@@ -20,11 +20,12 @@ SRC_DIR = forth
 SRC_NAMES = base debug v asm gfx gfxdemo rnd sin ls turtle fractals \
     sprite doloop sys labels mml mmldemo sid spritedemo \
     require compat timer float viceutil turnkey \
-    wordlist io open dos iec see accept
+    wordlist io open dos iec see accept \
+    vic irq joy mmlirq bounce
 SRCS = $(addprefix $(SRC_DIR)/,$(addsuffix .fs,$(SRC_NAMES)))
 
 TEST_SRC_NAMES = test testcore testcoreplus testcoreext testexception tester testsee 1
-TEST2_SRC_NAMES = see gfx gfxdemo fractals mmldemo mml sid spritedemo sprite compat rnd sin turtle
+TEST2_SRC_NAMES = see gfx gfxdemo fractals mmldemo mml sid spritedemo sprite compat rnd sin turtle irq mmlirq bounce
 TEST_SRCS = $(addprefix test/,$(addsuffix .fs,$(TEST_SRC_NAMES)))
 
 SEPARATOR_NAME1 = '=-=-=-=-=-=-=-=,s'
@@ -90,7 +91,7 @@ docs: docs/index.html
 
 docs/index.html: manual/index.adoc manual/words.adoc manual/links.adoc manual/sid.adoc manual/asm.adoc \
 	manual/mnemonics.adoc manual/memmap.adoc manual/anatomy.adoc LICENSE.txt manual/tutorial.adoc \
-	manual/intro.adoc manual/exceptions.adoc
+	manual/intro.adoc manual/exceptions.adoc manual/irq.adoc
 	rm -rf docs
 	asciidoctor -a revnumber=$(shell git describe --tags --dirty) -a revdate=$(shell git log -1 --format=%as) -o docs/index.html manual/index.adoc
 

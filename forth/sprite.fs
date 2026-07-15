@@ -42,3 +42,25 @@ over c! 1+ ;
 : sp-data ( addr -- )
 #21 0 do refill drop
 rdb rdb rdb loop drop ;
+
+( multicolor )
+: sp-mc-on ( n -- ) 7s- $d01c setbit ;
+: sp-mc-off ( n -- ) 7s- $d01c clrbit ;
+: sp-mc0! ( c -- ) $d025 c! ;
+: sp-mc1! ( c -- ) $d026 c! ;
+
+( sprite/background priority: 1 = behind bg )
+: sp-behind ( n -- ) 7s- $d01b setbit ;
+: sp-front ( n -- ) 7s- $d01b clrbit ;
+
+( sprite data pointer: block# = data addr / 64.
+  pointers live at screen base + $3f8;
+  default screen is $0400 -> $07f8. )
+$7f8 value sp-base
+: sp-ptr! ( block n -- ) sp-base + c! ;
+
+( collision registers - cleared on read, so read
+  once per frame and reuse the byte. bit n = sprite n )
+: sp-sp-coll ( -- b ) $d01e c@ ;
+: sp-bg-coll ( -- b ) $d01f c@ ;
+: sp-hit? ( b n -- f ) 7s- 80lsr and 0<> ;

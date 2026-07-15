@@ -22,6 +22,29 @@ parse-name sid included sid-demo
 1 fakekeys \ exits demo
 parse-name spritedemo included
 
+.( irq )
+parse-name irq included
+base @ hex
+create irqtestcnt 1 allot  0 irqtestcnt c!
+code .bumpc irqtestcnt inc, rts, end-code
+\ do...loop only works inside a definition, so wrap it.
+: .irqtest
+  0 irqtestcnt c!
+  ['] .bumpc irq!         \ run .bumpc ~60x/sec in background
+  #30 0 do
+    a2 c@ begin dup a2 c@ <> until drop  \ wait 1 jiffy
+  loop
+  irq-off
+  irqtestcnt c@ #10 < abort" irq callback did not fire" ;
+.irqtest
+base ! cr .( irq ok )
+
+.( bounce ) \ compile-only (needs sprite)
+parse-name bounce included
+
+.( mmlirq ) \ compile-only (needs mml+irq)
+parse-name mmlirq included
+
 .( see )
 parse-name testsee included
 

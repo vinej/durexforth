@@ -1,0 +1,82 @@
+These modules add the pieces needed to write real-time games: attaching a Forth word to the interrupt so it runs in the background, an interrupt-driven music player, and words for joysticks, sprite collisions, and VIC-II registers.
+
+=== Interrupts
+
+The `irq` module (`include irq`) lets you attach a Forth word to the 60&nbsp;Hz system interrupt. The word then runs in the *background* — 60 times a second — while the foreground interpreter keeps running. This is how games animate sprites, scroll, and play music while still responding to the user.
+
+((irq!)) _( xt -- )_ :: Install `xt` as the interrupt callback. It starts running immediately, ~60 times per second. Calling `irq!` again replaces the callback.
+((irq-off)) _( -- )_ :: Stop the callback and restore the previous interrupt handler. Safe to call when nothing is installed.
+((?irq)) _( -- f )_ :: True if a callback is currently installed.
+((di)) _( -- )_ :: Begin a critical section (disable interrupts). Use around foreground code that touches data the callback also uses.
+((ei)) _( -- )_ :: End a critical section (enable interrupts).
+
+Example — flash the border in the background while you keep typing:
+
+....
+include irq
+: blink 1 $d020 +! ;
+' blink irq!      \ border now flickers under interrupt
+irq-off           \ stop it
+....
+
+*The callback contract.* The callback runs at interrupt time, so it must be well-behaved:
+
+* It *must not* call the interpreter (`include`, `evaluate`), do disk/IEC I/O, `throw`, or run longer than one frame (1/60&nbsp;s).
+* It *may* read the joystick, poke VIC/SID registers, and update variables.
+* It runs on a private data-stack window and its own scratch, so `x`, `a`, `y`, and `w`/`w2`/`w3` are saved and restored for you. Keep the foreground data-stack depth below ~42 cells while a callback is installed.
+* Guard any variable that both the foreground and the callback modify with `di ... ei`.
+
+=== Background Music
+
+The `mmlirq` module plays <<Music,MML>> tunes under interrupt, so music keeps going while you do other things. Because `mml"` is a compile-time word, wrap the `bg-play` call in a definition, exactly as with `play-mml`.
+
+((bg-play)) _( str1 str2 str3 -- )_ :: Start playing three MML voice strings in the background and return immediately.
+((bg-stop)) _( -- )_ :: Stop the music, silence the voices, and uninstall the interrupt.
+
+....
+include mmlirq
+: song  mml" o3l4ccggaagf" mml" o3l4eeff" mml" o3l4cc" bg-play ;
+song       \ music now plays in the background
+bg-stop    \ stop it
+....
+
+Do not run the foreground `play` while background music is active; they share the same SID buffers.
+
+=== Joystick
+
+The `joy` module reads the joystick ports. Values are already inverted, so a set bit means *pressed*.
+
+((joy2)) _( -- b )_ :: Read joystick port 2 (`$dc00`). Bits: 0=up, 1=down, 2=left, 3=right, 4=fire.
+((joy1)) _( -- b )_ :: Read joystick port 1 (`$dc01`). Note: port 1 shares the keyboard matrix, so reads are noisy while typing.
+((joy-up?)) ((joy-down?)) ((joy-left?)) ((joy-right?)) ((joy-fire?)) _( b -- f )_ :: Test a direction/fire bit of a value read with `joy1`/`joy2`.
+
+....
+include joy
+: read  joy2 joy-left? if ." left " then joy-fire? if ." fire " then ;
+....
+
+=== Sprite Helpers
+
+The `sprite` module adds words for multicolor sprites, priority, data pointers, and hardware collision detection (on top of the position/enable/colour words).
+
+((sp-mc-on)) ((sp-mc-off)) _( n -- )_ :: Turn multicolor mode on/off for sprite _n_.
+((sp-mc0!)) ((sp-mc1!)) _( c -- )_ :: Set the two shared sprite multicolor registers.
+((sp-behind)) ((sp-front)) _( n -- )_ :: Put sprite _n_ behind / in front of the background.
+((sp-ptr!)) _( block n -- )_ :: Set sprite _n_'s data pointer to a 64-byte _block_ number. (Sprite data at address `A` uses block `A/64`.)
+((sp-sp-coll)) _( -- b )_ :: Read the sprite-sprite collision register (`$d01e`). Cleared on read, so read once per frame.
+((sp-bg-coll)) _( -- b )_ :: Read the sprite-background collision register (`$d01f`).
+((sp-hit?)) _( b n -- f )_ :: Test whether sprite _n_ collided, given a byte read from `sp-sp-coll`/`sp-bg-coll`.
+
+=== VIC-II Register Constants
+
+The `vic` module (`include vic`) defines readable names for the VIC-II registers — `border`, `bgcol`, `vic-ctrl1`, `vic-raster`, `sp-enable`, `sp-sp-hit`, and so on — so game code reads clearly instead of using bare addresses. See the module source for the full list.
+
+=== Example: a bouncing ball
+
+The `bounce` module is a complete example. It defines a ball sprite and animates it around the screen under interrupt, so the ball keeps bouncing while you type at the `ok` prompt.
+
+....
+include bounce
+bounce         \ the ball starts bouncing; you get the prompt back
+stop-bounce    \ stop it and hide the sprite
+....

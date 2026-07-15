@@ -3,3 +3,8 @@
 build
 deploy
 /doc64/
+
+# bundled VICE emulator: ignore everything except its README
+# (see emulator/README.md for how to supply it)
+/emulator/*
+!/emulator/README.md

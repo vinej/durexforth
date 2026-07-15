@@ -39,11 +39,47 @@ code .bumpc irqtestcnt inc, rts, end-code
 .irqtest
 base ! cr .( irq ok )
 
+.( raster )
+base @ hex
+create rastercnt 1 allot  0 rastercnt c!
+code .bumpr rastercnt inc, rts, end-code
+\ raster! fires .bumpr on line $80; wait a few jiffies and
+\ confirm it fired, then raster-off restores the jiffy irq.
+: .rastertest
+  0 rastercnt c!
+  80 ['] .bumpr raster!
+  #10 0 do
+    a2 c@ begin dup a2 c@ <> until drop  \ wait 1 jiffy
+  loop
+  raster-off
+  rastercnt c@ #5 < abort" raster callback did not fire"
+  ?raster abort" raster still on after raster-off" ;
+.rastertest
+base ! cr .( raster ok )
+
 .( bounce ) \ compile-only (needs sprite)
 parse-name bounce included
 
 .( mmlirq ) \ compile-only (needs mml+irq)
 parse-name mmlirq included
+
+.( rasterbars ) \ compile-only (needs irq+vic)
+parse-name rasterbars included
+
+.( mouse )
+parse-name mouse included
+base @ hex
+\ delta math is the fiddly part; check the mod-64 wrap + sign.
+10 10 mouse-delta abort" mouse-delta nonzero"
+15 10 mouse-delta 5 <> abort" mouse-delta +5"
+10 15 mouse-delta -5 <> abort" mouse-delta -5"
+01 3f mouse-delta 2 <> abort" mouse-delta wrap +"
+3f 01 mouse-delta -2 <> abort" mouse-delta wrap -"
+mouse-init                \ reads pots, must not crash
+base ! cr .( mouse ok )
+
+.( mousedemo ) \ compile-only (needs sprite+irq+mouse)
+parse-name mousedemo included
 
 .( see )
 parse-name testsee included

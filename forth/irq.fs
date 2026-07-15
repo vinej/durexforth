@@ -110,12 +110,109 @@ end-code
 
 : ?irq ( -- f ) irq-xt @ 0<> ;
 
-\ A raster-line-locked variant (raster!/raster-off) is
-\ planned but not shipped yet: cleanly sharing the VIC
-\ raster IRQ with the running Kernal CIA IRQ needs more
-\ care than the 60Hz hook above.  The 60Hz irq! is
-\ enough for background music, sprite movement, and
-\ game logic.
+\ ============================================================
+\ raster! : run a forth word when the beam reaches a chosen
+\ raster line, instead of at the 60Hz jiffy IRQ.
+\
+\   #100 ' myword raster!   \ myword fires on line 100
+\   raster-off              \ stop, restore the jiffy IRQ
+\
+\ Same callback rules as irq! (see the header): no
+\ interpreter, no i/o, no throw, one frame max, guard shared
+\ variables with di/ei.  The callback still runs on the
+\ private data-stack window, with x/a/y and w/w2/w3 saved.
+\
+\ How it coexists with the Kernal: we ADD the VIC raster IRQ
+\ as a second source and leave the CIA jiffy IRQ running.
+\ Every IRQ, the trampoline reads $d019 to see who fired:
+\  - raster bit set  -> ack the VIC, run the callback, then
+\                       pull a/x/y (pushed by $ff48) and rti.
+\  - otherwise       -> chain to the old vector so the Kernal
+\                       services the CIA (keyboard, clock...).
+\ Acking the VIC means WRITING $d019 (writing a 1 clears the
+\ latch); merely reading it leaves the line asserted and the
+\ machine re-enters forever -- that was the classic hang.
+\ ============================================================
+
+variable raster-xt      \ raster callback xt (0 = none)
+variable raster-old     \ saved previous $314 vector
+variable raster-jsr     \ address of the raster callback jsr operand
+0 raster-xt !           \ variable is not zero-initialised
+
+\ --- the raster trampoline installed into $314 ---
+code raster-trampoline
+d019 lda,               \ read VIC irq status
+1 and,#                 \ raster source (bit 0)?
++branch beq,            \ no -> not ours, chain to old vector
+
+\ --- it is our raster IRQ ---
+1 lda,# d019 sta,       \ ack: write bit0 of $d019 to clear latch
+
+w    lda, irq-save    sta,
+w 1+ lda, irq-save 1+ sta,
+w2   lda, irq-save 2 + sta,
+w2 1+ lda, irq-save 3 + sta,
+w3   lda, irq-save 4 + sta,
+w3 1+ lda, irq-save 5 + sta,
+
+cld,                    \ ensure binary mode
+
+raster-xt lda, raster-xt 1+ ora,
++branch beq,            \ no callback -> teardown
+irq-x ldx,#             \ private data-stack window
+here 1+ raster-jsr !    \ record the jsr operand address
+0 jsr,                  \ call callback (operand patched by raster!)
+
+:+                      \ teardown
+irq-save    lda, w    sta,
+irq-save 1+ lda, w 1+ sta,
+irq-save 2 + lda, w2   sta,
+irq-save 3 + lda, w2 1+ sta,
+irq-save 4 + lda, w3   sta,
+irq-save 5 + lda, w3 1+ sta,
+
+pla, tay,               \ restore y (pushed by $ff48)
+pla, tax,               \ restore x
+pla,                    \ restore a
+rti,                    \ return; we serviced this IRQ ourselves
+
+:+                      \ not our source
+raster-old (jmp),       \ chain to previous handler (Kernal CIA)
+end-code
+
+' raster-trampoline constant 'raster-tramp
+
+\ raster! ( line xt -- )
+\ Install the trampoline (once), enable the VIC raster IRQ,
+\ and latch the compare line.  line is 0..311; bit 8 of the
+\ line lives in $d011 bit7, which we clear (all supported
+\ lines are < 256 for simplicity).
+: raster! ( line xt -- )
+  di
+  dup raster-jsr @ !        \ patch callback into the jsr
+  raster-xt @ 0= if
+    314 @ raster-old !       \ save old vector once
+    'raster-tramp 314 !      \ install our trampoline
+    \ enable raster IRQ source in the VIC
+    d011 c@ 7f and d011 c!   \ clear raster compare bit 8
+    1 d01a c!                \ VIC irq mask: enable raster only
+    7f d019 c!               \ ack any pending VIC irqs
+  then
+  raster-xt !               \ store callback
+  d012 c!                   \ latch the compare line (low 8 bits)
+  ei ;
+
+: raster-off ( -- )
+  di
+  raster-xt @ if
+    0 d01a c!                \ disable all VIC irqs
+    7f d019 c!               \ ack any pending VIC irqs
+    raster-old @ 314 !       \ restore old vector
+    0 raster-xt !
+  then
+  ei ;
+
+: ?raster ( -- f ) raster-xt @ 0<> ;
 
 hide irq-save
 hide irq-savex

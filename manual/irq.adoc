@@ -1,4 +1,4 @@
-These modules add the pieces needed to write real-time games: attaching a Forth word to the interrupt so it runs in the background, an interrupt-driven music player, and words for joysticks, sprite collisions, and VIC-II registers.
+These modules add the pieces needed to write real-time games: attaching a Forth word to the interrupt so it runs in the background, an interrupt-driven music player, and words for joysticks, the mouse, sprite collisions, and VIC-II registers.
 
 === Interrupts
 
@@ -25,6 +25,44 @@ irq-off           \ stop it
 * It *may* read the joystick, poke VIC/SID registers, and update variables.
 * It runs on a private data-stack window and its own scratch, so `x`, `a`, `y`, and `w`/`w2`/`w3` are saved and restored for you. Keep the foreground data-stack depth below ~42 cells while a callback is installed.
 * Guard any variable that both the foreground and the callback modify with `di ... ei`.
+* Avoid `do ... loop` inside the callback: it keeps its index on the CPU stack, which clashes with the private data-stack window the callback runs on. Loop with `begin ... until` instead, or do the counting in the foreground.
+
+=== Raster Interrupts
+
+For effects that must be locked to the beam — split screens, smooth scrolling, tear-free sprite updates — attach the callback to a *raster line* instead of the 60&nbsp;Hz jiffy. The callback then fires the moment the beam reaches your chosen line.
+
+((raster!)) _( line xt -- )_ :: Install `xt` to fire when the raster beam reaches `line` (0–255). Replaces any previous raster callback. Leaves the Kernal's jiffy interrupt running, so the clock and keyboard keep working.
+((raster-off)) _( -- )_ :: Stop the raster callback, disable the VIC raster interrupt, and restore the previous handler.
+((?raster)) _( -- f )_ :: True if a raster callback is currently installed.
+
+The callback contract is the same as for `irq!` (no interpreter/I/O/`throw`, one frame max, no `do ... loop`, guard shared variables with `di ... ei`).
+
+Example — paint the bottom half of the screen a different colour with a rock-steady split:
+
+....
+include irq
+include vic
+: split  0 border c!  0 bgcol c! ;   \ black below line 128
+#128 ' split raster!                 \ steady horizontal split
+raster-off                           \ stop it
+....
+
+Because the split is locked to the beam, the boundary never crawls the way a jiffy-timed one would. Only one raster line is armed at a time; for multiple splits, re-latch `vic-raster` (`$d012`) from inside the callback.
+
+*Fast callbacks in assembly.* For tight, beam-timed work — especially a multi-bar raster that re-arms `$d012` several times per frame — a colon-threaded callback is too slow and will out-run itself. Write the callback in assembly instead. durexForth is subroutine-threaded, so a `code` word is called with a plain `jsr` and returns with `rts`, exactly what the trampoline expects; it may freely use `a`/`x`/`y` (they are saved for you).
+
+....
+include irq
+include vic
+code flash          \ a native raster callback: a few cycles
+  1 lda,#  $d020 sta,   \ white border below the split
+  rts,
+end-code
+#128 ' flash raster!
+raster-off
+....
+
+You can also keep the fast bytes inside a normal colon word by dropping into the assembler with `[ ... ]`; since compilation is subroutine-threaded, those opcodes run natively too. The `rasterbars` example uses a `code` callback to drive eight colour bars per frame — try rewriting it as colon-threaded and it storms the machine, which is the whole reason the callback is assembly.
 
 === Background Music
 
@@ -55,6 +93,28 @@ include joy
 : read  joy2 joy-left? if ." left " then joy-fire? if ." fire " then ;
 ....
 
+=== Mouse
+
+The `mouse` module reads a Commodore 1351 proportional mouse. The 1351 does not report an absolute position — every read gives 6 bits that wrap — so the driver keeps its own `mouse-x` / `mouse-y` and folds in the frame-to-frame movement. Call `mouse-update` once per frame (typically from an `irq!` callback), then read the position and buttons.
+
+((mouse-init)) _( -- )_ :: Prime the driver (read the pots so the first `mouse-update` sees no jump) and centre the pointer in its range. Call after choosing the port and range.
+((mouse-update)) _( -- )_ :: Fold this frame's movement into `mouse-x` / `mouse-y`, clamped to the configured range. IRQ-safe (only reads pots and updates variables).
+((mouse-x)) ((mouse-y)) _( -- addr )_ :: Variables holding the current pointer position.
+((mouse-lb?)) ((mouse-rb?)) _( -- f )_ :: True while the left / right mouse button is held.
+((mouse-port)) _( n -- )_ :: Select the control port the mouse is in (`1` or `2`). Default is port 1.
+((mouse-speed)) _( -- addr )_ :: Variable multiplying each frame's movement (default `1` = 1:1). In VICE the 1351 maps a full window sweep to only ~64 pot units, so the pointer barely travels at 1:1; the `mousedemo` sets `mouse-speed` to `5` so one swipe covers the whole 320-wide screen (and reaches the bottom). On real hardware, `1` or `2` is usually right.
+
+The movement range is set through `mouse-xmin` / `mouse-xmax` / `mouse-ymin` / `mouse-ymax` (default `0..319` by `0..199`); set them to suit sprite coordinates, then `mouse-init`. Positions past 255 use the sprite's 9th X bit automatically (via `sp-x!`).
+
+....
+include mouse
+mouse-init
+: track  mouse-update  mouse-x @ mouse-y @ 0 sp-xy! ;
+' track irq!            \ sprite 0 now follows the mouse
+....
+
+The `mousedemo` module is a complete example: an arrow sprite follows the mouse and turns red while the left button is held (`mouse-demo` / `stop-mouse-demo`). In VICE, enable a 1351 mouse on port 1 and grab it. Because the buttons come through the joystick lines, port-1 button reads are noisy while typing, exactly as with `joy1`.
+
 === Sprite Helpers
 
 The `sprite` module adds words for multicolor sprites, priority, data pointers, and hardware collision detection (on top of the position/enable/colour words).
@@ -79,4 +139,14 @@ The `bounce` module is a complete example. It defines a ball sprite and animates
 include bounce
 bounce         \ the ball starts bouncing; you get the prompt back
 stop-bounce    \ stop it and hide the sprite
+....
+
+=== Example: raster colour bars
+
+The `rasterbars` module shows `raster!` driving a classic effect: eight horizontal colour bars, each locked to its own raster line, painted while you keep typing at the prompt. Its callback is an assembly `code` word — it re-arms `$d012` once per bar, eight times a frame, which only native code is fast enough to do without out-running the beam.
+
+....
+include rasterbars
+bars           \ colour bars appear; the prompt returns
+stop-bars      \ stop them and restore a plain screen
 ....

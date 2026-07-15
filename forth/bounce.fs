@@ -17,7 +17,10 @@ base @ hex
 \ sprite 0 data: a filled ball (a circle) centred in
 \ the 24x21 sprite cell.  Each row is exactly 24 chars;
 \ '.' = transparent pixel, anything else = solid.
-$0340 sp-data
+\ Kept at $0380 (block $0e), not $0340: durexForth's word-
+\ lookup buffer is at $033c..$035b, so sprite data at $0340
+\ gets partly overwritten by the names of words parsed after.
+$0380 sp-data
 ........XXXXXXXX........
 ......XXXXXXXXXXXX......
 .....XXXXXXXXXXXXXX.....
@@ -110,7 +113,7 @@ $1000 constant floor-tone  \ top/bottom
   1 ball-vx !    1 ball-vy !        \ 1 px per step
   0 frame !
   sid-init                          \ set up the blip voice
-  $0340 $40 / $07f8 c!              \ sprite 0 pointer -> $0340
+  $0380 $40 / $07f8 c!              \ sprite 0 pointer -> $0380
   1 0 sp-col!                       \ white
   0 sp-on                           \ enable sprite 0
   ['] move-ball irq! ;             \ animate under irq

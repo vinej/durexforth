@@ -328,14 +328,69 @@ Because `upper` and `lower` modify the bytes in place, give them a writable buff
 
 === Number Formatting
 
-For more info about number formatting, read Starting Forth.
+Pictured numeric output looks impenetrable until you hold two facts, and then it is simple:
+
+1. *The string is built right to left.* `#` produces the *last* digit first, and everything — digits, punctuation — is prepended. That is why the code reads backwards from the output it makes.
+2. *It converts a double.* The words work on a 32-bit _ud_, so a single cell needs a `0` on top first (unsigned), or the save-the-sign dance shown below (signed). Doubles arrive on the stack from `s>d`, `um*` and friends — the interpreter itself only accepts 16-bit literals.
 
 ((<#)) :: Begin the number conversion process.
-((#)) _( ud -- ud )_ :: Convert one digit and puts it in the start of the output string.
-((#s)) _( ud -- ud )_ :: Call `#` and repeats until _ud_ is zero.
-((hold)) _( ch -- )_ :: Insert the character `ch` at the start of the output string.
-((sign)) _( a -- )_ :: If _a_ is negative, insert a minus sign at the start of the output string.
-((#>)) _( xd -- addr u )_ :: Drop _xd_ and returns the output string.
+((#)) _( ud -- ud )_ :: Convert one digit and prepend it to the output string.
+((#s)) _( ud -- ud )_ :: Call `#` repeatedly until _ud_ is zero — so at least one digit, and no leading zeros.
+((hold)) _( ch -- )_ :: Prepend the character _ch_ to the output string.
+((sign)) _( n -- )_ :: If _n_ is negative, prepend a minus sign.
+((#>)) _( ud -- addr u )_ :: End conversion, drop the spent _ud_, and return the string — usually straight into `type`.
+
+Digits obey `base` *at the moment `#` runs*, and the string lives in a transient scratch area: `type` it or copy it before converting anything else.
+
+*What `u.` is made of.* The whole pattern in one line — `0` makes the double, `#s` converts every digit:
+
+....
+: u.| ( u -- ) 0 <# #s #> type space ;
+123 u.|                    \ 123
+....
+
+*Leading zeros.* Each `#` is exactly one digit, so six of them are a six-character field — the score counter every game wants:
+
+....
+: .score ( u -- ) 0 <# # # # # # # #> type ;
+1230 .score                \ 001230
+....
+
+*Signed, with punctuation.* Building right to left means `# #` then `hold` puts the point *before* the last two digits. The sign has to be saved before `abs` and applied after the digits:
+
+....
+: .$ ( cents -- ) dup >r abs 0
+  <# # # [char] . hold #s r> sign #> type ;
+-1234 .$                   \ -12.34
+....
+
+This is also exactly how `d.` prints a double — see `double.fs`.
+
+*Another base, just for this.* Conversion uses whatever `base` is when `#` runs, so switch and restore around it:
+
+....
+: .addr ( u -- ) base @ >r hex
+  0 <# # # # # [char] $ hold #> type  r> base ! ;
+49152 .addr                \ $c000
+....
+
+*Two numbers in one picture.* The _ud_ being converted can be replaced mid-session: convert the seconds' two digits, drop the spent double, push the minutes and keep going. Minutes and seconds, one string:
+
+....
+: .mmss ( sec -- ) 60 /mod swap
+  0 <# # # [char] : hold 2drop 0 #s #> type ;
+754 .mmss                  \ 12:34
+....
+
+*Right-aligned columns.* `#>` hands back the string before anything prints, so measure it and pad first — standard Forth calls this `.r`:
+
+....
+: .r ( n width -- ) >r dup >r abs 0 <# #s r> sign #>
+  r> over - 0 max spaces type ;
+42 8 .r                    \       42
+....
+
+For the full story, read Starting Forth.
 
 === Vectored Execution
 

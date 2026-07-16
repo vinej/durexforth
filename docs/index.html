@@ -2040,8 +2040,15 @@ No built-in words will modify this region.</p>
 <div class="sect2">
 <h3 id="_number_formatting">Number Formatting</h3>
 <div class="paragraph">
-<p>For more info about number formatting, read Starting Forth.</p>
+<p>Pictured numeric output looks impenetrable until you hold two facts, and then it is simple:</p>
 </div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>The string is built right to left.</strong> <code>#</code> produces the <strong>last</strong> digit first, and everything — digits, punctuation — is prepended. That is why the code reads backwards from the output it makes.</p>
+</li>
+<li>
+<p><strong>It converts a double.</strong> The words work on a 32-bit <em>ud</em>, so a single cell needs a <code>0</code> on top first (unsigned), or the save-the-sign dance shown below (signed). Doubles arrive on the stack from <code>s&gt;d</code>, <code>um*</code> and friends — the interpreter itself only accepts 16-bit literals.</p>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">&lt;# </dt>
@@ -2050,25 +2057,95 @@ No built-in words will modify this region.</p>
 </dd>
 <dt class="hdlist1"># <em>( ud&#8201;&#8212;&#8201;ud )</em> </dt>
 <dd>
-<p>Convert one digit and puts it in the start of the output string.</p>
+<p>Convert one digit and prepend it to the output string.</p>
 </dd>
 <dt class="hdlist1">#s <em>( ud&#8201;&#8212;&#8201;ud )</em> </dt>
 <dd>
-<p>Call <code>#</code> and repeats until <em>ud</em> is zero.</p>
+<p>Call <code>#</code> repeatedly until <em>ud</em> is zero — so at least one digit, and no leading zeros.</p>
 </dd>
 <dt class="hdlist1">hold <em>( ch&#8201;&#8212;&#8201;)</em> </dt>
 <dd>
-<p>Insert the character <code>ch</code> at the start of the output string.</p>
+<p>Prepend the character <em>ch</em> to the output string.</p>
 </dd>
-<dt class="hdlist1">sign <em>( a&#8201;&#8212;&#8201;)</em> </dt>
+<dt class="hdlist1">sign <em>( n&#8201;&#8212;&#8201;)</em> </dt>
 <dd>
-<p>If <em>a</em> is negative, insert a minus sign at the start of the output string.</p>
+<p>If <em>n</em> is negative, prepend a minus sign.</p>
 </dd>
-<dt class="hdlist1">#&gt; <em>( xd&#8201;&#8212;&#8201;addr u )</em> </dt>
+<dt class="hdlist1">#&gt; <em>( ud&#8201;&#8212;&#8201;addr u )</em> </dt>
 <dd>
-<p>Drop <em>xd</em> and returns the output string.</p>
+<p>End conversion, drop the spent <em>ud</em>, and return the string — usually straight into <code>type</code>.</p>
 </dd>
 </dl>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Digits obey <code>base</code> <strong>at the moment <code>#</code> runs</strong>, and the string lives in a transient scratch area: <code>type</code> it or copy it before converting anything else.</p>
+</div>
+<div class="paragraph">
+<p><strong>What <code>u.</code> is made of.</strong> The whole pattern in one line — <code>0</code> makes the double, <code>#s</code> converts every digit:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: u.| ( u -- ) 0 &lt;# #s #&gt; type space ;
+123 u.|                    \ 123</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Leading zeros.</strong> Each <code>#</code> is exactly one digit, so six of them are a six-character field — the score counter every game wants:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: .score ( u -- ) 0 &lt;# # # # # # # #&gt; type ;
+1230 .score                \ 001230</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Signed, with punctuation.</strong> Building right to left means <code># #</code> then <code>hold</code> puts the point <strong>before</strong> the last two digits. The sign has to be saved before <code>abs</code> and applied after the digits:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: .$ ( cents -- ) dup &gt;r abs 0
+  &lt;# # # [char] . hold #s r&gt; sign #&gt; type ;
+-1234 .$                   \ -12.34</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This is also exactly how <code>d.</code> prints a double — see <code>double.fs</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Another base, just for this.</strong> Conversion uses whatever <code>base</code> is when <code>#</code> runs, so switch and restore around it:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: .addr ( u -- ) base @ &gt;r hex
+  0 &lt;# # # # # [char] $ hold #&gt; type  r&gt; base ! ;
+49152 .addr                \ $c000</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Two numbers in one picture.</strong> The <em>ud</em> being converted can be replaced mid-session: convert the seconds' two digits, drop the spent double, push the minutes and keep going. Minutes and seconds, one string:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: .mmss ( sec -- ) 60 /mod swap
+  0 &lt;# # # [char] : hold 2drop 0 #s #&gt; type ;
+754 .mmss                  \ 12:34</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Right-aligned columns.</strong> <code>#&gt;</code> hands back the string before anything prints, so measure it and pad first — standard Forth calls this <code>.r</code>:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: .r ( n width -- ) &gt;r dup &gt;r abs 0 &lt;# #s r&gt; sign #&gt;
+  r&gt; over - 0 max spaces type ;
+42 8 .r                    \       42</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>For the full story, read Starting Forth.</p>
 </div>
 </div>
 <div class="sect2">

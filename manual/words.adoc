@@ -110,6 +110,30 @@ NOTE: `d<` compares the low halves *unsigned* when the high halves match. It has
 ((um/mod)) _( ud n -- r q )_ :: Divide double-cell number ud by n, giving remainder r and quotient q. Values are unsigned.
 ((fm/mod)) _( d n -- r q )_ :: Divide double-cell number d by n, giving the floored quotient q and the remainder r. Values are signed.
 
+=== Float
+
+The `fp` module (`include fp`) puts floating point on a float stack of its own, as every Forth that takes floats seriously does: the data stack carries addresses and flags, the float stack carries the numbers. So where a cell has `0< 0<> 0> 0= < > <> . ! @`, a float has the same ten with an `f` in front, and none of them disturbs the data stack beyond an address or a flag.
+
+((s>f)) _( n -- )_ :: Push an integer onto the float stack as a float.
+((f+)) ((f-)) ((f*)) ((f/)) _( -- )_ :: Arithmetic on the top two floats.
+((f0<)) ((f0<>)) ((f0>)) ((f0=)) _( -- f )_ :: Compare the top float against zero, dropping it.
+((f<)) ((f>)) ((f<>)) ((f=)) _( -- f )_ :: Compare the top two floats, dropping both.
+((f.)) _( -- )_ :: Print the top float and drop it.
+((f@)) _( addr -- )_ :: Push the 5-byte float at _addr_.
+((f!)) _( addr -- )_ :: Pop the top float to _addr_.
+((fdup)) _( -- )_ :: Duplicate the top float.
+((fdrop)) _( -- )_ :: Drop it.
+((fdepth?)) _( -- n )_ :: Floats currently on the float stack (8 fit).
+
+....
+#7 s>f  #2 s>f  f/  f.      \ 3.5 - real division, not integer
+#1 s>f  #2 s>f  f<  .       \ -1
+create fv 5 allot
+#9 s>f  fv f!   fv f@  f.   \ 9
+....
+
+NOTE: This is not `float.fs`, which says of itself that it "cannot be used safely" and is right. BASIC's floating point accumulators live at `$61-$70` and durexForth's parameter stack is `$03-$72`, so every BASIC FP call lands on the data stack; `float.fs` survives only while the stack happens to be shallow. `fp` routes everything through one assembly primitive that parks `$61-$70`, calls the ROM and puts it back, touching the data stack nowhere in between. A float is BASIC's own 5-byte format, so `f.` is FOUT, `f<` is FCOMP and `s>f` is GIVAYF - and BASIC ROM must be present, which the primitive banks in around each call.
+
 === Logic
 
 ((0=)) _( a -- flag)_ :: Is _a_ equal to zero?

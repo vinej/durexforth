@@ -486,6 +486,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_utility">Utility</a></li>
 <li><a href="#_mathematics">Mathematics</a></li>
 <li><a href="#_double">Double</a></li>
+<li><a href="#_float">Float</a></li>
 <li><a href="#_logic">Logic</a></li>
 <li><a href="#_memory">Memory</a></li>
 <li><a href="#_compiling">Compiling</a></li>
@@ -1420,6 +1421,76 @@ This may change with public demand.</p>
 <p>Divide double-cell number d by n, giving the floored quotient q and the remainder r. Values are signed.</p>
 </dd>
 </dl>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_float">Float</h3>
+<div class="paragraph">
+<p>The <code>fp</code> module (<code>include fp</code>) puts floating point on a float stack of its own, as every Forth that takes floats seriously does: the data stack carries addresses and flags, the float stack carries the numbers. So where a cell has <code>0&lt; 0&lt;&gt; 0&gt; 0= &lt; &gt; &lt;&gt; . ! @</code>, a float has the same ten with an <code>f</code> in front, and none of them disturbs the data stack beyond an address or a flag.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">s&gt;f <em>( n&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Push an integer onto the float stack as a float.</p>
+</dd>
+<dt class="hdlist1">f+ f- f* f/ <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Arithmetic on the top two floats.</p>
+</dd>
+<dt class="hdlist1">f0&lt; f0&lt;&gt; f0&gt; f0= <em>(&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>Compare the top float against zero, dropping it.</p>
+</dd>
+<dt class="hdlist1">f&lt; f&gt; f&lt;&gt; f= <em>(&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>Compare the top two floats, dropping both.</p>
+</dd>
+<dt class="hdlist1">f. <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Print the top float and drop it.</p>
+</dd>
+<dt class="hdlist1">f@ <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Push the 5-byte float at <em>addr</em>.</p>
+</dd>
+<dt class="hdlist1">f! <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Pop the top float to <em>addr</em>.</p>
+</dd>
+<dt class="hdlist1">fdup <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Duplicate the top float.</p>
+</dd>
+<dt class="hdlist1">fdrop <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Drop it.</p>
+</dd>
+<dt class="hdlist1">fdepth? <em>(&#8201;&#8212;&#8201;n )</em> </dt>
+<dd>
+<p>Floats currently on the float stack (8 fit).</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>#7 s&gt;f  #2 s&gt;f  f/  f.      \ 3.5 - real division, not integer
+#1 s&gt;f  #2 s&gt;f  f&lt;  .       \ -1
+create fv 5 allot
+#9 s&gt;f  fv f!   fv f@  f.   \ 9</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+This is not <code>float.fs</code>, which says of itself that it "cannot be used safely" and is right. BASIC&#8217;s floating point accumulators live at <code>$61-$70</code> and durexForth&#8217;s parameter stack is <code>$03-$72</code>, so every BASIC FP call lands on the data stack; <code>float.fs</code> survives only while the stack happens to be shallow. <code>fp</code> routes everything through one assembly primitive that parks <code>$61-$70</code>, calls the ROM and puts it back, touching the data stack nowhere in between. A float is BASIC&#8217;s own 5-byte format, so <code>f.</code> is FOUT, <code>f&lt;</code> is FCOMP and <code>s&gt;f</code> is GIVAYF - and BASIC ROM must be present, which the primitive banks in around each call.
+</td>
+</tr>
+</table>
 </div>
 </div>
 <div class="sect2">

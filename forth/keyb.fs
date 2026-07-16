@@ -44,6 +44,18 @@ rts, end-code
 
 \ Common keys. Any other key is "row col kb-key" - see the
 \ matrix in any C64 reference.
+\
+\ Two things the matrix will tell you that surprise people:
+\
+\ There are only FOUR function keys down there. F2 is SHIFT+F1,
+\ F4 is SHIFT+F3, F6 is SHIFT+F5, F8 is SHIFT+F7 - so pressing
+\ F2 makes kb? report k-f1 AND k-lshift, which is the hardware
+\ being honest. To tell F1 from F2:
+\   : f1? k-f1 kb? k-lshift kb? 0= and ;
+\   : f2? k-f1 kb? k-lshift kb? and ;
+\
+\ And the two shifts are separate keys (15 and 52), not one -
+\ check both if you mean "either shift".
 #01 constant k-return
 #02 constant k-crsr-rt
 #03 constant k-f7

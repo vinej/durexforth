@@ -3265,6 +3265,36 @@ then</pre>
 <div class="title">Note</div>
 </td>
 <td class="content">
+There are only <strong>four</strong> function keys in the matrix. F2 is SHIFT+F1, F4 is SHIFT+F3, F6 is SHIFT+F5, F8 is SHIFT+F7 - so pressing F2 makes <code>kb?</code> report both <code>k-f1</code> and <code>k-lshift</code>. That is the hardware being honest, not a bug. To tell them apart:
+</td>
+</tr>
+</table>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: f1? k-f1 kb? k-lshift kb? 0= and ;
+: f2? k-f1 kb? k-lshift kb? and ;</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+The two shift keys are separate keys in the matrix (<code>k-lshift</code> = 15, <code>k-rshift</code> = 52), not one. Check both if you mean "either shift".
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
 <code>kb?</code> scans with interrupts held off for a few cycles, because the KERNAL scans the same hardware sixty times a second and would otherwise move the row out from under the read. It uses <code>php</code>/<code>plp</code> rather than <code>sei</code>/<code>cli</code>, so it is safe to call from inside an <code>irq!</code> callback. It also leaves <code>$dc00</code> at <code>$ff</code> on the way out — with a row still selected, <code>joy2</code> reads the same port and would report phantom directions.
 </td>
 </tr>
@@ -3301,7 +3331,27 @@ then</pre>
 <dd>
 <p>Get/set the character set address. Must be <code>$800</code>-aligned and inside the current bank.</p>
 </dd>
+<dt class="hdlist1">charset-lock <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Stop the KERNAL swapping your font out. Call it before <code>charset!</code>.</p>
+</dd>
+<dt class="hdlist1">charset-unlock <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Allow the swap again.</p>
+</dd>
 </dl>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+The KERNAL switches between the two ROM fonts when SHIFT+C= is pressed, and some hosts (MiSTer among them) reach the same toggle from CAPS. It does it by flipping <code>$d018</code> - the register <code>charset!</code> just set - so with a custom charset this is not a cosmetic annoyance: your font is replaced by a ROM one mid-game and the screen turns to garbage. <code>charset-lock</code> (<code>$0291</code> bit 7) turns the toggle off. Any game with its own font wants it.
+</td>
+</tr>
+</table>
 </div>
 <div class="admonitionblock note">
 <table>

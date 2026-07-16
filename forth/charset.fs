@@ -64,6 +64,18 @@ code cs-ei cli, rts, end-code
 hide cs-di
 hide cs-ei
 
+\ --- keeping the charset you chose ----------------------------
+\ The KERNAL swaps between the upper- and lower-case ROM fonts
+\ when SHIFT+C= is pressed, and it does it by flipping $d018 -
+\ the very register charset! just set. Some hosts (MiSTer among
+\ them) reach the same toggle from CAPS. With a custom charset
+\ that is not a cosmetic annoyance: your font is swapped out for
+\ a rom one mid-game and the screen turns to garbage. $0291 bit
+\ 7 turns the swap off; call charset-lock before charset!.
+
+: charset-lock ( -- )   80 291 c! ;   \ $0291 bit7: shift+C= ignored
+: charset-unlock ( -- ) 0 291 c! ;
+
 \ --- characters -----------------------------------------------
 
 : chardef ( c -- addr ) 8 * charset@ + ;

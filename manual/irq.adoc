@@ -155,6 +155,15 @@ include keyb
   k-space kb? if fire then ;   \ all three at once, if you like
 ....
 
+NOTE: There are only *four* function keys in the matrix. F2 is SHIFT+F1, F4 is SHIFT+F3, F6 is SHIFT+F5, F8 is SHIFT+F7 - so pressing F2 makes `kb?` report both `k-f1` and `k-lshift`. That is the hardware being honest, not a bug. To tell them apart:
+
+....
+: f1? k-f1 kb? k-lshift kb? 0= and ;
+: f2? k-f1 kb? k-lshift kb? and ;
+....
+
+NOTE: The two shift keys are separate keys in the matrix (`k-lshift` = 15, `k-rshift` = 52), not one. Check both if you mean "either shift".
+
 NOTE: `kb?` scans with interrupts held off for a few cycles, because the KERNAL scans the same hardware sixty times a second and would otherwise move the row out from under the read. It uses `php`/`plp` rather than `sei`/`cli`, so it is safe to call from inside an `irq!` callback. It also leaves `$dc00` at `$ff` on the way out — with a row still selected, `joy2` reads the same port and would report phantom directions.
 
 === Characters and Tiles
@@ -168,6 +177,10 @@ The `charset` module (`include charset`) covers the other way to draw a game. Th
 ((vic-base)) _( -- addr )_ :: Base address of the current bank.
 ((screen@)) ((screen!)) _( -- addr )_ / _( addr -- )_ :: Get/set the screen memory address. Must be `$400`-aligned and inside the current bank. `screen!` also moves `sp-base` with it, since the sprite data pointers live at screen+`$3f8`.
 ((charset@)) ((charset!)) _( -- addr )_ / _( addr -- )_ :: Get/set the character set address. Must be `$800`-aligned and inside the current bank.
+((charset-lock)) _( -- )_ :: Stop the KERNAL swapping your font out. Call it before `charset!`.
+((charset-unlock)) _( -- )_ :: Allow the swap again.
+
+WARNING: The KERNAL switches between the two ROM fonts when SHIFT+C= is pressed, and some hosts (MiSTer among them) reach the same toggle from CAPS. It does it by flipping `$d018` - the register `charset!` just set - so with a custom charset this is not a cosmetic annoyance: your font is replaced by a ROM one mid-game and the screen turns to garbage. `charset-lock` (`$0291` bit 7) turns the toggle off. Any game with its own font wants it.
 
 NOTE: In practice your charset cannot live in bank 0. durexForth's own code runs from `$0801` up to `here` (around `$38xx`), which swallows every `$800`-aligned slot in `$0000-$3fff`. So a custom charset means moving the VIC to bank 1 (`$4000`), where there is free RAM between `here` and the dictionary — and the screen has to move with it, because the VIC sees one bank at a time.
 

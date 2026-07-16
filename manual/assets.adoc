@@ -1,0 +1,89 @@
+You will not draw a game's graphics or write its music at the durexForth prompt, and you should not try. The C64 has good tools for that — SpritePad Pro and CharPad Pro for graphics, GoatTracker 2 for music — and durexForth can load what they produce.
+
+The trick is that you never parse their project files. A `.spd` or `.ctm` is an editor document, full of undo history and palette state. Every one of these tools exports plain binary as well, and that is what a C64 wants: bytes, at an address.
+
+=== The catch that bites everyone: where it goes
+
+durexForth is a large program and it is *in the way*. On the cartridge build:
+
+[cols="1,3"]
+|===
+|`$0801` - `$4a9a` |durexForth's code, up to `here`
+|`$4a9b` - `$8c6d` |free — about 16K, put your assets here
+|`$8c6e` - `$9cff` |the dictionary, growing down
+|`$9d00` - `$9f27` |the cartridge's romfs driver
+|===
+
+Character data and sprite data are just bytes, so they go anywhere free that is correctly aligned. *Music does not.* A SID player has its addresses baked into its own code — it cannot be loaded somewhere other than where it was built. GoatTracker defaults to `$1000`, which lands squarely on top of the interpreter and takes it out. Build or pack the tune for about `$5000` instead.
+
+=== The other catch: loadb eats two bytes
+
+((loadb)) _( addr len dst -- endaddr )_ asks the KERNAL to load with a secondary address of 0, which means the file's first two bytes are treated as a load address and thrown away. That is correct for a `.prg`, and wrong for a raw `.bin` — you would silently lose the first two bytes of your charset.
+
+So give it a `.prg`. Either export one, or glue a two-byte dummy address on the front (the same guard durexForth's own modules use):
+
+....
+printf '\x00\x48' | cat - charset.bin > chars.prg
+c1541 -attach game.d64 -write chars.prg chars
+....
+
+=== CharPad Pro
+
+Export *charset* (raw, 2048 bytes = 256 characters) and, if you use per-character colour, *attributes* (256 bytes, one per character). Then it is two words:
+
+....
+include charset
+s" chars" $4800 loadb drop     \ 2K -> $4800-$4fff
+$400 $4000 #1000 move          \ bring the text along to look at
+1 vic-bank!  $4000 screen!  $4800 charset!
+....
+
+The charset must be `$800`-aligned and inside the VIC bank, and the screen has to move into that bank with it — see <<Characters and Tiles>>. Export the *map* as raw binary too and draw it with `tile!`.
+
+=== SpritePad Pro
+
+Export *sprites* as raw binary: 64 bytes each, back to back, so 80 sprites is 5120 bytes. Load it 64-byte aligned and point a sprite at it. The pointer is a block number counted from the VIC bank, not an address — block = (address - bank base) / 64:
+
+....
+include charset
+s" sprites" $5000 loadb drop   \ 80 sprites at $5000
+1 vic-bank!  $4000 screen!
+#64 0 sp-ptr!                  \ ($5000-$4000)/64 = 64 -> sprite 0
+#100 #100 0 sp-xy!  1 0 sp-col!  0 sp-on
+....
+
+=== GoatTracker 2
+
+A `.sid` file is a 124-byte PSID header followed by the C64 payload — and that payload already begins with its own two-byte load address, so with the header off it *is* a `.prg` and `loadb` takes it unchanged:
+
+....
+dd if=tune.sid bs=1 skip=124 of=tune.prg
+....
+
+(124 is `dataOffset`, the big-endian word at offset 6 of the header; it is `$7c` for PSID v2. GoatTracker's own packer can emit the `.prg` directly and save you the step.)
+
+The payload is a player with two entry points — almost always `jmp init` at the load address and `jmp play` three bytes later. The `sidmusic` module wires them up:
+
+((sid-load)) _( addr len dst -- )_ :: Load a tune and assume init at `dst`, play at `dst+3`.
+((sid!)) _( init play -- )_ :: Point at the two entry points explicitly, for a tune that is laid out differently.
+((sid-init)) _( song -- )_ :: Call the tune's init with a song number.
+((sid-on)) _( -- )_ :: Start calling play every frame.
+((sid-off)) _( -- )_ :: Stop, and silence the SID.
+
+....
+include sidmusic
+s" tune" $5000 sid-load
+0 sid-init
+sid-on           \ music plays while you carry on working
+sid-off
+....
+
+NOTE: `sid-on` installs a native `jmp play` for the interrupt to `jsr` into. It has to be machine code: a colon-threaded callback is too slow for beam-timed work, and anything using `do ... loop` is illegal in a callback outright.
+
+NOTE: `sid-on` uses `irq!`, which replaces any other callback. To run music *and* your own per-frame word, call both from one word — Forth composes, so you do not need anything cleverer:
+
+....
+: frame  sid-tick  move-sprites ;
+....
+
+...where `sid-tick` is your own `code` word doing `jsr $5003`, or simply let `sid-on` own the interrupt and drive your game from the foreground.

@@ -541,6 +541,15 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_example_raster_colour_bars">Example: raster colour bars</a></li>
 </ul>
 </li>
+<li><a href="#_importing_graphics_and_music">Importing Graphics and Music</a>
+<ul class="sectlevel2">
+<li><a href="#_the_catch_that_bites_everyone_where_it_goes">The catch that bites everyone: where it goes</a></li>
+<li><a href="#_the_other_catch_loadb_eats_two_bytes">The other catch: loadb eats two bytes</a></li>
+<li><a href="#_charpad_pro">CharPad Pro</a></li>
+<li><a href="#_spritepad_pro">SpritePad Pro</a></li>
+<li><a href="#_goattracker_2">GoatTracker 2</a></li>
+</ul>
+</li>
 <li><a href="#_easyflash_cartridge">EasyFlash Cartridge</a>
 <ul class="sectlevel2">
 <li><a href="#_what_is_resident">What is resident</a></li>
@@ -3589,6 +3598,179 @@ stop-bars      \ stop them and restore a plain screen</pre>
 </div>
 </div>
 <div class="sect1">
+<h2 id="_importing_graphics_and_music">Importing Graphics and Music</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>You will not draw a game&#8217;s graphics or write its music at the durexForth prompt, and you should not try. The C64 has good tools for that — SpritePad Pro and CharPad Pro for graphics, GoatTracker 2 for music — and durexForth can load what they produce.</p>
+</div>
+<div class="paragraph">
+<p>The trick is that you never parse their project files. A <code>.spd</code> or <code>.ctm</code> is an editor document, full of undo history and palette state. Every one of these tools exports plain binary as well, and that is what a C64 wants: bytes, at an address.</p>
+</div>
+<div class="sect2">
+<h3 id="_the_catch_that_bites_everyone_where_it_goes">The catch that bites everyone: where it goes</h3>
+<div class="paragraph">
+<p>durexForth is a large program and it is <strong>in the way</strong>. On the cartridge build:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>$0801</code> - <code>$4a9a</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">durexForth&#8217;s code, up to <code>here</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>$4a9b</code> - <code>$8c6d</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">free — about 16K, put your assets here</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>$8c6e</code> - <code>$9cff</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">the dictionary, growing down</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>$9d00</code> - <code>$9f27</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">the cartridge&#8217;s romfs driver</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Character data and sprite data are just bytes, so they go anywhere free that is correctly aligned. <strong>Music does not.</strong> A SID player has its addresses baked into its own code — it cannot be loaded somewhere other than where it was built. GoatTracker defaults to <code>$1000</code>, which lands squarely on top of the interpreter and takes it out. Build or pack the tune for about <code>$5000</code> instead.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_the_other_catch_loadb_eats_two_bytes">The other catch: loadb eats two bytes</h3>
+<div class="paragraph">
+<p>loadb <em>( addr len dst&#8201;&#8212;&#8201;endaddr )</em> asks the KERNAL to load with a secondary address of 0, which means the file&#8217;s first two bytes are treated as a load address and thrown away. That is correct for a <code>.prg</code>, and wrong for a raw <code>.bin</code> — you would silently lose the first two bytes of your charset.</p>
+</div>
+<div class="paragraph">
+<p>So give it a <code>.prg</code>. Either export one, or glue a two-byte dummy address on the front (the same guard durexForth&#8217;s own modules use):</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>printf '\x00\x48' | cat - charset.bin &gt; chars.prg
+c1541 -attach game.d64 -write chars.prg chars</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_charpad_pro">CharPad Pro</h3>
+<div class="paragraph">
+<p>Export <strong>charset</strong> (raw, 2048 bytes = 256 characters) and, if you use per-character colour, <strong>attributes</strong> (256 bytes, one per character). Then it is two words:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include charset
+s" chars" $4800 loadb drop     \ 2K -&gt; $4800-$4fff
+$400 $4000 #1000 move          \ bring the text along to look at
+1 vic-bank!  $4000 screen!  $4800 charset!</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The charset must be <code>$800</code>-aligned and inside the VIC bank, and the screen has to move into that bank with it — see <a href="#_characters_and_tiles">Characters and Tiles</a>. Export the <strong>map</strong> as raw binary too and draw it with <code>tile!</code>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_spritepad_pro">SpritePad Pro</h3>
+<div class="paragraph">
+<p>Export <strong>sprites</strong> as raw binary: 64 bytes each, back to back, so 80 sprites is 5120 bytes. Load it 64-byte aligned and point a sprite at it. The pointer is a block number counted from the VIC bank, not an address — block = (address - bank base) / 64:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include charset
+s" sprites" $5000 loadb drop   \ 80 sprites at $5000
+1 vic-bank!  $4000 screen!
+#64 0 sp-ptr!                  \ ($5000-$4000)/64 = 64 -&gt; sprite 0
+#100 #100 0 sp-xy!  1 0 sp-col!  0 sp-on</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_goattracker_2">GoatTracker 2</h3>
+<div class="paragraph">
+<p>A <code>.sid</code> file is a 124-byte PSID header followed by the C64 payload — and that payload already begins with its own two-byte load address, so with the header off it <strong>is</strong> a <code>.prg</code> and <code>loadb</code> takes it unchanged:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>dd if=tune.sid bs=1 skip=124 of=tune.prg</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>(124 is <code>dataOffset</code>, the big-endian word at offset 6 of the header; it is <code>$7c</code> for PSID v2. GoatTracker&#8217;s own packer can emit the <code>.prg</code> directly and save you the step.)</p>
+</div>
+<div class="paragraph">
+<p>The payload is a player with two entry points — almost always <code>jmp init</code> at the load address and <code>jmp play</code> three bytes later. The <code>sidmusic</code> module wires them up:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">sid-load <em>( addr len dst&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Load a tune and assume init at <code>dst</code>, play at <code>dst+3</code>.</p>
+</dd>
+<dt class="hdlist1">sid! <em>( init play&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Point at the two entry points explicitly, for a tune that is laid out differently.</p>
+</dd>
+<dt class="hdlist1">sid-init <em>( song&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Call the tune&#8217;s init with a song number.</p>
+</dd>
+<dt class="hdlist1">sid-on <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Start calling play every frame.</p>
+</dd>
+<dt class="hdlist1">sid-off <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Stop, and silence the SID.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include sidmusic
+s" tune" $5000 sid-load
+0 sid-init
+sid-on           \ music plays while you carry on working
+sid-off</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<code>sid-on</code> installs a native <code>jmp play</code> for the interrupt to <code>jsr</code> into. It has to be machine code: a colon-threaded callback is too slow for beam-timed work, and anything using <code>do &#8230;&#8203; loop</code> is illegal in a callback outright.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<code>sid-on</code> uses <code>irq!</code>, which replaces any other callback. To run music <strong>and</strong> your own per-frame word, call both from one word — Forth composes, so you do not need anything cleverer:
+</td>
+</tr>
+</table>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>: frame  sid-tick  move-sprites ;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>&#8230;&#8203;where <code>sid-tick</code> is your own <code>code</code> word doing <code>jsr $5003</code>, or simply let <code>sid-on</code> own the interrupt and drive your game from the foreground.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_easyflash_cartridge">EasyFlash Cartridge</h2>
 <div class="sectionbody">
 <div class="paragraph">
@@ -4591,7 +4773,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2026-07-16 09:36:50 -0400
+Last updated 2026-07-16 13:23:59 -0400
 </div>
 </div>
 </body>

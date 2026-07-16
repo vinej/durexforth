@@ -31,6 +31,9 @@ include::mml.adoc[]
 == Games and Interrupts
 include::irq.adoc[]
 
+== Importing Graphics and Music
+include::assets.adoc[]
+
 == EasyFlash Cartridge
 include::easyflash.adoc[]
 

@@ -21,7 +21,7 @@ SRC_NAMES = base debug v asm gfx gfxdemo rnd sin ls turtle fractals \
     sprite doloop sys labels mml mmldemo sid spritedemo \
     require compat timer float viceutil turnkey \
     wordlist io open dos file str iec see accept \
-    vic irq joy mouse mmlirq bounce rasterbars mousedemo charset scroll keyb blit xform keybdemo scrolldemo
+    vic irq joy mouse mmlirq bounce rasterbars mousedemo charset scroll keyb blit xform keybdemo scrolldemo sidmusic
 SRCS = $(addprefix $(SRC_DIR)/,$(addsuffix .fs,$(SRC_NAMES)))
 
 TEST_SRC_NAMES = test testcore testcoreplus testcoreext testexception tester testsee 1
@@ -91,7 +91,7 @@ docs: docs/index.html
 
 docs/index.html: manual/index.adoc manual/words.adoc manual/links.adoc manual/sid.adoc manual/asm.adoc \
 	manual/mnemonics.adoc manual/memmap.adoc manual/anatomy.adoc LICENSE.txt manual/tutorial.adoc \
-	manual/intro.adoc manual/exceptions.adoc manual/irq.adoc manual/easyflash.adoc
+	manual/intro.adoc manual/exceptions.adoc manual/irq.adoc manual/easyflash.adoc manual/assets.adoc
 	rm -rf docs
 	asciidoctor -a revnumber=$(shell git describe --tags --dirty) -a revdate=$(shell git log -1 --format=%as) -o docs/index.html manual/index.adoc
 

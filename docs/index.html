@@ -1316,6 +1316,52 @@ print-hello</pre>
 Double literals (e.g. <code>123456.</code>) are not supported.
 This may change with public demand.</p>
 </div>
+<div class="paragraph">
+<p>The words below are always present. The tests, print and store words are in the <code>double</code> module (<code>include double</code>), named to match the cell words: where a cell has <code>0&lt; 0&lt;&gt; 0&gt; 0= &lt; &gt; &lt;&gt; . ! @</code>, a double has the same ten with a <code>d</code> in front. A double sits on the stack as two cells, low half first, so the high half is on top - the order <code>2@</code>, <code>2!</code> and <code>s&gt;d</code> already use.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">d0&lt; d0&lt;&gt; d0&gt; d0= <em>( d&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>Compare a double against zero.</p>
+</dd>
+<dt class="hdlist1">d&lt; d&gt; d&lt;&gt; d= <em>( d1 d2&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>Compare two doubles. Signed.</p>
+</dd>
+<dt class="hdlist1">d. <em>( d&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Print a double, signed, followed by a space.</p>
+</dd>
+<dt class="hdlist1">d@ <em>( addr&#8201;&#8212;&#8201;d )</em> </dt>
+<dd>
+<p>Fetch a double. Same as <code>2@</code>.</p>
+</dd>
+<dt class="hdlist1">d! <em>( d addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Store a double. Same as <code>2!</code>.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>#12345 s&gt;d d.                  \ 12345
+#30000 s&gt;d #30000 s&gt;d d+ d.    \ 60000 - past what a cell holds
+#100 s&gt;d #200 s&gt;d d&lt; .         \ -1</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<code>d&lt;</code> compares the low halves <strong>unsigned</strong> when the high halves match. It has to: a low half of <code>$ffff</code> means 65535 there, not -1. So <code>-1 0</code> is the double 65535, and <code>-1 0  1 0  d&lt;</code> is correctly false - a signed low compare would get that backwards.
+</td>
+</tr>
+</table>
+</div>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">dabs <em>( d&#8201;&#8212;&#8201;ud )</em> </dt>

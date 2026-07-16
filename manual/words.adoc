@@ -73,6 +73,22 @@ Double-cell (32-bit) number support is limited.
 Double literals (e.g. `123456.`) are not supported.
 This may change with public demand.
 
+The words below are always present. The tests, print and store words are in the `double` module (`include double`), named to match the cell words: where a cell has `0< 0<> 0> 0= < > <> . ! @`, a double has the same ten with a `d` in front. A double sits on the stack as two cells, low half first, so the high half is on top - the order `2@`, `2!` and `s>d` already use.
+
+((d0<)) ((d0<>)) ((d0>)) ((d0=)) _( d -- f )_ :: Compare a double against zero.
+((d<)) ((d>)) ((d<>)) ((d=)) _( d1 d2 -- f )_ :: Compare two doubles. Signed.
+((d.)) _( d -- )_ :: Print a double, signed, followed by a space.
+((d@)) _( addr -- d )_ :: Fetch a double. Same as `2@`.
+((d!)) _( d addr -- )_ :: Store a double. Same as `2!`.
+
+....
+#12345 s>d d.                  \ 12345
+#30000 s>d #30000 s>d d+ d.    \ 60000 - past what a cell holds
+#100 s>d #200 s>d d< .         \ -1
+....
+
+NOTE: `d<` compares the low halves *unsigned* when the high halves match. It has to: a low half of `$ffff` means 65535 there, not -1. So `-1 0` is the double 65535, and `-1 0  1 0  d<` is correctly false - a signed low compare would get that backwards.
+
 ((dabs)) _( d -- ud )_ :: Produce the absolute value of _d_.
 ((dnegate)) _( d -- d )_ :: Negate the double-cell integer _d_.
 ((s>d)) _( n -- d )_ :: Convert the number n to the double-cell number _d_.

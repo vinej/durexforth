@@ -15,6 +15,7 @@ The `game-dev-features` branch turns durexForth into a game development system: 
 * **scroll8demo**: the camera engine (`cam+`) is fully verified; the joystick read itself still wants a human hand on real hardware.
 * **`irq!`/`raster!` hold one callback each**: modules that install their own (music, bands) replace yours — compose by calling both from one word. A true callback chain needs an assembly dispatcher; a Forth one cost 64→40 Hz and was reverted.
 * **open curiosity**: single-letter words `a`–`e` defined at the prompt once produced garbage from blits while identical code under longer names was perfect; undiagnosed, suspected number-parser/`find` interaction. Avoid single-letter definitions until it is understood.
+* **the module set has outgrown a raw d64**: the Makefile's one-disk flow (kernel + every module source, self-packing on first boot) now needs ~888 blocks of 664. The shipped `durexforth.d64` is therefore built pre-packed — packed system + every includable module — which fits with one exception (`gfxdemo`); `durexforth.d71` carries absolutely everything. `make deploy` as written would overflow: use `DISK_SUF=d71`, or teach it the pack-first layout.
 
 [![build status](https://github.com/jkotlinski/durexforth/actions/workflows/build.yml/badge.svg)](https://github.com/jkotlinski/durexforth/actions/workflows/build.yml)
 

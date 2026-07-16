@@ -37,3 +37,36 @@ E.g. `15 clrcol` clears the screen with green background, white foreground.
 ((text)) _( column row str strlen -- )_ :: Draw a text string at the given position.
 E.g. `10 8 parse-name hallo text` draws the message `hallo` at column 16, row 8.
 ((drawchar)) _( column row addr -- )_ :: Draw a custom character at given column and row, using the 8 bytes long data starting at addr.
+
+=== Software Sprites (blitter)
+
+The `blit` module (`include blit`) stamps blocks of pixels into the hi-res bitmap.
+
+The VIC gives you eight hardware sprites. Everything else a game draws — a screen full of aliens, a bullet, a piece of landscape — has to be poked into the bitmap by hand, and doing it a pixel at a time with `plot` is far too slow. A blitter moves a whole block at once, optionally combining it with what is already there.
+
+A sprite here is simply _w*h_ character cells of 8 bytes each, stored row by row — the same shape `drawchar` takes, only bigger. Build one with `create ... c,`.
+
+((blit-blk)) _( src w h x y -- )_ :: Stamp the block at cell _x,y_, overwriting.
+((blit-or)) _( src w h x y -- )_ :: OR it into what is there. This is how you draw a shape over a background.
+((blit-and)) _( src w h x y -- )_ :: AND it — a mask.
+((blit-xor)) _( src w h x y -- )_ :: XOR it. Blitting the same data twice returns the bitmap exactly to what it was, which is the cheapest way to move something over a background you cannot afford to save.
+((blit-get)) _( dst w h x y -- )_ :: Read a block back _out_ of the bitmap.
+((blit-col!)) _( c w h x y -- )_ :: Colour the cells a blit covers. Hi-res colour is per cell: high nibble is the pixel colour, low nibble the background, so `$10` is white on black. A sprite blitted without this is there but invisible.
+((blit-op)) _( -- xt )_ :: The word that combines a source byte with the bitmap byte. Assign your own with `' myop to blit-op` and call `blit` if you want something exotic.
+
+Save the background, draw, then put it back:
+
+....
+include blit
+: mk #32 0 do $ff c, loop ;
+create ship mk           \ a 2x2 cell block, all pixels set
+create bg #32 allot
+hires $10 clrcol
+bg   2 2 #10 #5 blit-get \ remember what was there
+ship 2 2 #10 #5 blit-or  \ draw over it
+bg   2 2 #10 #5 blit-blk \ later: put it back
+....
+
+NOTE: Blits are character aligned, as White Lightning's were. The bitmap is stored as 8-byte cells, so a cell-aligned blit is a byte copy; an arbitrary pixel _x_ would mean shifting every byte and merging it across a cell boundary — several times the work. The classic answer is to keep eight pre-shifted copies of the sprite and pick one, which is a job for whatever draws the sprite rather than for the blitter.
+
+NOTE: The bitmap lives at `$e000`, underneath the KERNAL. Writes fall through to the RAM, but reads would come back as KERNAL ROM — and `blit-or`, `blit-and`, `blit-xor` and `blit-get` all read. So every blit is wrapped in `kernal-out`/`kernal-in`, which means interrupts are off for its duration and nothing may call the KERNAL in between.

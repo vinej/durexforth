@@ -509,6 +509,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel2">
 <li><a href="#_turtle_graphics">Turtle Graphics</a></li>
 <li><a href="#_high_resolution_graphics">High-Resolution Graphics</a></li>
+<li><a href="#_software_sprites_blitter">Software Sprites (blitter)</a></li>
 </ul>
 </li>
 <li><a href="#_sid">SID</a>
@@ -2664,6 +2665,89 @@ E.g. <code>10 8 parse-name hallo text</code> draws the message <code>hallo</code
 <p>Draw a custom character at given column and row, using the 8 bytes long data starting at addr.</p>
 </dd>
 </dl>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_software_sprites_blitter">Software Sprites (blitter)</h3>
+<div class="paragraph">
+<p>The <code>blit</code> module (<code>include blit</code>) stamps blocks of pixels into the hi-res bitmap.</p>
+</div>
+<div class="paragraph">
+<p>The VIC gives you eight hardware sprites. Everything else a game draws — a screen full of aliens, a bullet, a piece of landscape — has to be poked into the bitmap by hand, and doing it a pixel at a time with <code>plot</code> is far too slow. A blitter moves a whole block at once, optionally combining it with what is already there.</p>
+</div>
+<div class="paragraph">
+<p>A sprite here is simply <em>w*h</em> character cells of 8 bytes each, stored row by row — the same shape <code>drawchar</code> takes, only bigger. Build one with <code>create &#8230;&#8203; c,</code>.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">blit-blk <em>( src w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Stamp the block at cell <em>x,y</em>, overwriting.</p>
+</dd>
+<dt class="hdlist1">blit-or <em>( src w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>OR it into what is there. This is how you draw a shape over a background.</p>
+</dd>
+<dt class="hdlist1">blit-and <em>( src w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>AND it — a mask.</p>
+</dd>
+<dt class="hdlist1">blit-xor <em>( src w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>XOR it. Blitting the same data twice returns the bitmap exactly to what it was, which is the cheapest way to move something over a background you cannot afford to save.</p>
+</dd>
+<dt class="hdlist1">blit-get <em>( dst w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Read a block back <em>out</em> of the bitmap.</p>
+</dd>
+<dt class="hdlist1">blit-col! <em>( c w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Colour the cells a blit covers. Hi-res colour is per cell: high nibble is the pixel colour, low nibble the background, so <code>$10</code> is white on black. A sprite blitted without this is there but invisible.</p>
+</dd>
+<dt class="hdlist1">blit-op <em>(&#8201;&#8212;&#8201;xt )</em> </dt>
+<dd>
+<p>The word that combines a source byte with the bitmap byte. Assign your own with <code>' myop to blit-op</code> and call <code>blit</code> if you want something exotic.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>Save the background, draw, then put it back:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include blit
+: mk #32 0 do $ff c, loop ;
+create ship mk           \ a 2x2 cell block, all pixels set
+create bg #32 allot
+hires $10 clrcol
+bg   2 2 #10 #5 blit-get \ remember what was there
+ship 2 2 #10 #5 blit-or  \ draw over it
+bg   2 2 #10 #5 blit-blk \ later: put it back</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+Blits are character aligned, as White Lightning&#8217;s were. The bitmap is stored as 8-byte cells, so a cell-aligned blit is a byte copy; an arbitrary pixel <em>x</em> would mean shifting every byte and merging it across a cell boundary — several times the work. The classic answer is to keep eight pre-shifted copies of the sprite and pick one, which is a job for whatever draws the sprite rather than for the blitter.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+The bitmap lives at <code>$e000</code>, underneath the KERNAL. Writes fall through to the RAM, but reads would come back as KERNAL ROM — and <code>blit-or</code>, <code>blit-and</code>, <code>blit-xor</code> and <code>blit-get</code> all read. So every blit is wrapped in <code>kernal-out</code>/<code>kernal-in</code>, which means interrupts are off for its duration and nothing may call the KERNAL in between.
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>

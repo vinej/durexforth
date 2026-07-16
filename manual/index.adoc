@@ -75,4 +75,4 @@ include::../LICENSE.txt[]
 ifeval::["{backend}" == "pdf"]
 [index]
 == Word Index
-endif::
+endif::[]

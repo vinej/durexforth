@@ -54,6 +54,17 @@ A sprite here is simply _w*h_ character cells of 8 bytes each, stored row by row
 ((blit-col!)) _( c w h x y -- )_ :: Colour the cells a blit covers. Hi-res colour is per cell: high nibble is the pixel colour, low nibble the background, so `$10` is white on black. A sprite blitted without this is there but invisible.
 ((blit-op)) _( -- xt )_ :: The word that combines a source byte with the bitmap byte. Assign your own with `' myop to blit-op` and call `blit` if you want something exotic.
 
+*Sprite to sprite.* These combine one sprite into another of the same size, with the bitmap not involved at all — so no KERNAL banking and no interrupts held off.
+
+((cpy-blk)) ((cpy-or)) ((cpy-and)) ((cpy-xor)) _( src dst w h -- )_ :: `dst` becomes `dst op src`.
+
+Build a masked sprite once at startup and a single `blit-blk` per frame then draws it over any background:
+
+....
+hole ship cpy-and     \ punch the mask through
+art  ship cpy-or      \ lay the artwork in
+....
+
 Save the background, draw, then put it back:
 
 ....

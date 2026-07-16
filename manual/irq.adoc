@@ -155,6 +155,15 @@ include keyb
   k-space kb? if fire then ;   \ all three at once, if you like
 ....
 
+The `keybdemo` module is a hands-on check, since an emulator harness cannot press a real key — `-keybuf` fills the KERNAL's buffer and never touches the matrix:
+
+....
+include keybdemo
+keys        \ hold keys - several at once; RUN/STOP quits
+....
+
+It names the keys it knows and shows the raw matrix number of anything held, so you can identify a key that has no constant.
+
 NOTE: There are only *four* function keys in the matrix. F2 is SHIFT+F1, F4 is SHIFT+F3, F6 is SHIFT+F5, F8 is SHIFT+F7 - so pressing F2 makes `kb?` report both `k-f1` and `k-lshift`. That is the hardware being honest, not a bug. To tell them apart:
 
 ....
@@ -245,6 +254,13 @@ TIP: A side-scroller wants `col38`. Without it the column being scrolled in is d
 ((scroll-left)) ((scroll-right)) _( x y w h -- )_ :: Shift the window one character sideways.
 ((scroll-up)) ((scroll-down)) _( x y w h -- )_ :: Shift the window one character vertically.
 ((col-scroll)) _( -- f )_ :: Whether colour memory is shifted too. Default is on.
+
+*Wrapping.* The plain `scroll-*` leave the vacated edge alone, because a scroller is about to draw new material into it. When you want the window's contents to cycle forever instead — a marquee, a repeating background — use the wrapping versions: whatever leaves one edge comes back at the other, and nothing has to feed them.
+
+((wrap-left)) ((wrap-right)) _( x y w h -- )_ :: Shift one character sideways, carrying the lost column round to the far edge.
+((wrap-up)) ((wrap-down)) _( x y w h -- )_ :: The same vertically.
+
+The `scrolldemo` module is built out of these — see below.
 
 Colour is shifted along with the characters, because colour memory does *not* move with the screen — it is wired at `$d800` whatever `screen!` says. That doubles the work, so a game with a uniform colour scheme can turn it off:
 

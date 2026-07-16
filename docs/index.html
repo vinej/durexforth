@@ -2721,6 +2721,26 @@ E.g. <code>10 8 parse-name hallo text</code> draws the message <code>hallo</code
 </dl>
 </div>
 <div class="paragraph">
+<p><strong>Sprite to sprite.</strong> These combine one sprite into another of the same size, with the bitmap not involved at all — so no KERNAL banking and no interrupts held off.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">cpy-blk cpy-or cpy-and cpy-xor <em>( src dst w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p><code>dst</code> becomes <code>dst op src</code>.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>Build a masked sprite once at startup and a single <code>blit-blk</code> per frame then draws it over any background:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>hole ship cpy-and     \ punch the mask through
+art  ship cpy-or      \ lay the artwork in</pre>
+</div>
+</div>
+<div class="paragraph">
 <p>Save the background, draw, then put it back:</p>
 </div>
 <div class="literalblock">
@@ -3267,6 +3287,18 @@ then</pre>
   k-space kb? if fire then ;   \ all three at once, if you like</pre>
 </div>
 </div>
+<div class="paragraph">
+<p>The <code>keybdemo</code> module is a hands-on check, since an emulator harness cannot press a real key — <code>-keybuf</code> fills the KERNAL&#8217;s buffer and never touches the matrix:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include keybdemo
+keys        \ hold keys - several at once; RUN/STOP quits</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It names the keys it knows and shows the raw matrix number of anything held, so you can identify a key that has no constant.</p>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -3525,6 +3557,24 @@ A side-scroller wants <code>col38</code>. Without it the column being scrolled i
 <p>Whether colour memory is shifted too. Default is on.</p>
 </dd>
 </dl>
+</div>
+<div class="paragraph">
+<p><strong>Wrapping.</strong> The plain <code>scroll-*</code> leave the vacated edge alone, because a scroller is about to draw new material into it. When you want the window&#8217;s contents to cycle forever instead — a marquee, a repeating background — use the wrapping versions: whatever leaves one edge comes back at the other, and nothing has to feed them.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">wrap-left wrap-right <em>( x y w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Shift one character sideways, carrying the lost column round to the far edge.</p>
+</dd>
+<dt class="hdlist1">wrap-up wrap-down <em>( x y w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>The same vertically.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>The <code>scrolldemo</code> module is built out of these — see below.</p>
 </div>
 <div class="paragraph">
 <p>Colour is shifted along with the characters, because colour memory does <strong>not</strong> move with the screen — it is wired at <code>$d800</code> whatever <code>screen!</code> says. That doubles the work, so a game with a uniform colour scheme can turn it off:</p>
@@ -4773,7 +4823,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2026-07-16 13:23:59 -0400
+Last updated 2026-07-16 13:26:23 -0400
 </div>
 </div>
 </body>

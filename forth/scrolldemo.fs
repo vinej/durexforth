@@ -51,17 +51,7 @@ cc constant curflag     \ $cc: non-zero stops the cursor blinking
 : hmsg s" durexforth scrolls forever   " ;
 : vmsg s" durexforth " ;
 
-( petscii -> screen code. Enough for lower case and spaces,
-  which is all these banners are made of. )
-: p>s ( c -- c' ) dup #64 < if exit then #64 - ;
-
-0 value bp
-
-: h-put ( addr len -- )   \ lay the sentence along row hrow
-  0 hrow scr-at to bp
-  0 do
-    dup i + c@ p>s  bp i + c!
-  loop drop ;
+\ p>s and text! come from charset (via scroll)
 
 : v-put ( addr len -- )   \ and this one down column vcol
   0 do
@@ -89,7 +79,7 @@ cc constant curflag     \ $cc: non-zero stops the cursor blinking
 : hbanner ( -- )
   1 curflag c!            \ before the clear, or the blink leaves a block
   page col38
-  hmsg h-put
+  hmsg 0 hrow text!
   7 #40 1 0 hrow tile-col!
   0 to fine  0 to fc  0 xscroll!
   begin frame h-step k-stop kb? until

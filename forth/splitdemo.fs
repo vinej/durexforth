@@ -55,19 +55,14 @@ cc constant curflag             \ non-zero stops the cursor blinking
   steps as steps. Change it live:  2 to pspeed )
 3 value pspeed
 
-: p>s ( c -- c' ) dup #64 < if exit then #64 - ;   \ petscii -> screen
-
-0 value pp
-: put ( addr len x y -- )
-  scr-at to pp
-  0 do dup i + c@ p>s  pp i + c! loop drop ;
+\ text! (charset.fs) puts the strings on screen
 
 : playfield ( -- )
   \ solid blue; the message sits on rows 9-11, and because the
   \ empty rows are a single colour the fine scroll leaves them
   \ visibly unchanged while it glides the text
-  s" this half glides right ->" 2 #9 put
-  s" the panel below stays put" 2 #11 put
+  s" this half glides right ->" 2 #9 text!
+  s" the panel below stays put" 2 #11 text!
   1 #40 3 0 #9 tile-col! ;      \ white, so wrapping chars (not
                                 \ colour) keeps the colour uniform
 
@@ -84,7 +79,7 @@ cc constant curflag             \ non-zero stops the cursor blinking
 
 : panel ( -- )
   #40 0 do #45 i panel-row scr-at c! loop   \ a rule along the top
-  s" score 000000    lives 3" 2 #22 put
+  s" score 000000    lives 3" 2 #22 text!
   1 #40 5 0 panel-row tile-col! ;
 
 0 value fine                    \ pixels moved since the last wrap

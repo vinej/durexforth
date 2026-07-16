@@ -101,6 +101,36 @@ hide cs-ei
 : scr-at ( x y -- addr ) #40 * + screen@ + ;
 : col-at ( x y -- addr ) #40 * + d800 + ;
 
+\ --- text ------------------------------------------------------
+\ Screen ram holds SCREEN CODES, not petscii - poke a string from
+\ s" in raw and every letter is off by an alphabet. p>s is the
+\ standard mapping (both letter cases, digits, punctuation;
+\ control codes pass through untouched, so filter those first if
+\ the text can contain them).
+
+: p>s ( c -- c' )
+  dup 40 < if exit then         \ $20-$3f: digits etc, unchanged
+  dup 60 < if 40 - exit then    \ $40-$5f: lower case
+  dup 80 < if 20 - exit then    \ $60-$7f
+  dup a0 < if exit then         \ $80-$9f: control, pass through
+  dup c0 < if 40 - exit then    \ $a0-$bf
+  80 - ;                        \ $c0-$fe: upper case
+
+( Write a string straight into screen ram at a character
+  position. This is the game path: no cursor, no scrolling, no
+  KERNAL - the prompt stays wherever it was, so it works from an
+  irq! callback too. For cursor-and-scroll text output use io's
+  at-xy with type instead. Colour the same cells with tile-col!:
+    s" score" 0 #24 text!
+    1 5 1 0 #24 tile-col! )
+0 value tp
+: text! ( addr u x y -- )
+  scr-at to tp
+  over + swap ?do
+    i c@ p>s  tp c!  tp 1+ to tp
+  loop ;
+hide tp
+
 \ --- tiles ----------------------------------------------------
 \ A tile is just w*h character codes stored row by row, so a
 \ 2x2 tile is 4 bytes. Nothing is stored about tiles beyond

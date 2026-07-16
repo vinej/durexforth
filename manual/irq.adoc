@@ -282,6 +282,16 @@ brick 2 2 #10 #5 tile!      \ stamp it at column 10, row 5
 2 2 2 #10 #5 tile-col!      \ and colour it red
 ....
 
+*Text on the playfield.* Screen memory holds _screen codes_, not PETSCII — poke a string from `s"` in raw and every letter is off by an alphabet. `text!` converts and writes in one go, straight into screen memory: no cursor, no scrolling, no Kernal, so the prompt stays where it was and it is safe from an `irq!` callback. (For ordinary cursor-and-scroll output, `at-xy` and `type` — see <<Input,the I/O words>>.)
+
+((text!)) _( addr u x y -- )_ :: Write the string at character cell _x,y_.
+((p>s)) _( c -- c' )_ :: Convert one PETSCII character to its screen code — both letter cases, digits and punctuation; control codes pass through unchanged.
+
+....
+s" score" 0 #24 text!
+1 5 1 0 #24 tile-col!       \ white, same five cells
+....
+
 === Scrolling
 
 The `scroll` module (`include scroll`) is the other half of tile-based games: `tile!` builds a world, scrolling moves the camera over it.

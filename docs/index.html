@@ -1963,6 +1963,30 @@ No built-in words will modify this region.</p>
 </dd>
 </dl>
 </div>
+<div class="paragraph">
+<p><strong>Cursor position</strong> (<code>include io</code>):</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">at-xy <em>( x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Move the cursor to column <em>x</em> (0–39), row <em>y</em> (0–24); the next <code>type</code>, <code>emit</code> or <code>.</code> prints there. Goes through the Kernal&#8217;s PLOT vector, so the screen-line pointer follows — poking the zero-page cursor bytes directly leaves output on the old line.</p>
+</dd>
+<dt class="hdlist1">xy@ <em>(&#8201;&#8212;&#8201;x y )</em> </dt>
+<dd>
+<p>The cursor&#8217;s current column and row.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>#10 #5 at-xy ." score:"     \ prints at column 10, row 5
+xy@ swap . .                \ 16 5 - just past what it printed</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>at-xy</code> output moves the cursor and can scroll the screen like any printing; to write text at a position <strong>without</strong> touching the cursor — mid-game, or from an interrupt — use <code>text!</code> from the <code>charset</code> module instead (see <a href="#_characters_and_tiles">Characters and Tiles</a>).</p>
+</div>
 <div class="sect3">
 <h4 id="_string_manipulation">String Manipulation</h4>
 <div class="paragraph">
@@ -3832,6 +3856,27 @@ $400 $4000 #1000 move       \ carry the current text over to the new screen
 <pre>create brick 1 c, 2 c, 3 c, 4 c,
 brick 2 2 #10 #5 tile!      \ stamp it at column 10, row 5
 2 2 2 #10 #5 tile-col!      \ and colour it red</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Text on the playfield.</strong> Screen memory holds <em>screen codes</em>, not PETSCII — poke a string from <code>s"</code> in raw and every letter is off by an alphabet. <code>text!</code> converts and writes in one go, straight into screen memory: no cursor, no scrolling, no Kernal, so the prompt stays where it was and it is safe from an <code>irq!</code> callback. (For ordinary cursor-and-scroll output, <code>at-xy</code> and <code>type</code> — see <a href="#_input">the I/O words</a>.)</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">text! <em>( addr u x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Write the string at character cell <em>x,y</em>.</p>
+</dd>
+<dt class="hdlist1">p&gt;s <em>( c&#8201;&#8212;&#8201;c' )</em> </dt>
+<dd>
+<p>Convert one PETSCII character to its screen code — both letter cases, digits and punctuation; control codes pass through unchanged.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>s" score" 0 #24 text!
+1 5 1 0 #24 tile-col!       \ white, same five cells</pre>
 </div>
 </div>
 </div>

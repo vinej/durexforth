@@ -304,6 +304,18 @@ No built-in words will modify this region.
 ((type)) _( caddr u -- )_ :: Print a string.
 ((/string)) _( caddr u n -- caddr+n u-n )_ :: Adjust the string by _n_ characters.
 
+*Cursor position* (`include io`):
+
+((at-xy)) _( x y -- )_ :: Move the cursor to column _x_ (0–39), row _y_ (0–24); the next `type`, `emit` or `.` prints there. Goes through the Kernal's PLOT vector, so the screen-line pointer follows — poking the zero-page cursor bytes directly leaves output on the old line.
+((xy@)) _( -- x y )_ :: The cursor's current column and row.
+
+....
+#10 #5 at-xy ." score:"     \ prints at column 10, row 5
+xy@ swap . .                \ 16 5 - just past what it printed
+....
+
+`at-xy` output moves the cursor and can scroll the screen like any printing; to write text at a position *without* touching the cursor — mid-game, or from an interrupt — use `text!` from the `charset` module instead (see <<Characters and Tiles>>).
+
 ==== String Manipulation
 
 The `str` module (`include str`) adds friendly words for manipulating strings, which are ordinary `( addr len )` pairs. The slicing words (`left`, `right`, `mid`, `trim`) return a *view* into the same memory — nothing is copied — so a result is valid as long as its source is. The comparison and search words return flags or positions.

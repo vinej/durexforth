@@ -48,3 +48,20 @@ dex, w stx, 0 lda,# msb sta,x
 $ffcf jsr, \ CHRIN
 w ldx, lsb sta,x
 rts, end-code
+
+\ Cursor position. at-xy is the standard word (ANS Facility);
+\ it goes through the KERNAL's PLOT vector so the screen-line
+\ pointer is recomputed - poking the zero-page column/row
+\ directly leaves output going to the old line. Reading them
+\ back, by contrast, is just two zero-page bytes.
+code at-xy ( x y -- )
+w stx,
+lsb lda,x pha,          \ row = y (top of stack)
+lsb 1+ lda,x tay,       \ column = x
+pla, tax,
+clc,                    \ carry clear = set position
+$fff0 jsr,              \ PLOT
+w ldx, inx, inx,
+rts, end-code
+
+: xy@ ( -- x y ) $d3 c@ $d6 c@ ;

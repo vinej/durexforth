@@ -48,10 +48,21 @@
 \ inside the same frame. Everything here happens between the
 \ irq and the first pixel of the band.
 \
-\ It coexists with irq! and sid-on, but only in this order:
-\ install those FIRST, bands-on LAST, and take them off in
-\ reverse. The band handler chains to whatever was in $314
-\ when bands-on ran, so it has to be the outermost one.
+\ bands-on OWNS THE INTERRUPT. It turns the Kernal's CIA timer
+\ IRQ off and makes the VIC raster the only source, because the
+\ two fighting is what makes a split flicker: the CIA handler
+\ runs ~40 rasterlines with interrupts disabled, and when that
+\ straddles a band's line the raster IRQ is serviced dozens of
+\ lines late and the band is drawn a whole frame wrong. With the
+\ CIA IRQ off the raster IRQ is serviced within a few cycles
+\ every time, and the busy-wait to the exact line takes out the
+\ rest. bands-off puts the CIA IRQ back.
+\
+\ While bands run there is therefore no jiffy clock and no Kernal
+\ keyboard scan - drive timing from band-sync (below) and read
+\ keys with kb? straight off the matrix. Per-frame game logic
+\ goes in the foreground after band-sync, not in irq!, which the
+\ CIA drove and which is now silent.
 
 \ irq for di / ei, charset for vic-base (band-charset!, band-screen!).
 \ Bare on purpose - see charset.fs.
@@ -71,11 +82,13 @@ create band-d020 #8 allot       \ border
 create band-d021 #8 allot       \ background
 create band-i    1 allot        \ band the next irq belongs to
 create band-n    1 allot        \ bands defined
+create band-fr   1 allot        \ frame counter, ticked once per frame
 variable band-old               \ saved $314
 0 value bands-live
 
 0 band-n c!
 0 band-i c!
+0 band-fr c!
 
 ( The band handler. Runs entirely off the tables above, with x
   as the band index - no forth, no data stack, nothing that
@@ -119,7 +132,10 @@ band-d016 lda,x  d016 sta,
 inx,                    \ on to the next band, round the frame
 band-n cpx,
 3 @@ bne,
-0 ldx,#
+0 ldx,#                 \ wrapped: we just serviced the last band,
+band-fr inc,            \ so the frame is over - tick, in the lower
+                        \ border, which is where band-sync releases
+                        \ the foreground to move characters
 3 @:
 band-i stx,
 
@@ -187,11 +203,14 @@ end-code
   band-n c@ 0= abort" no bands defined"
   di
   0 band-i c!
+  0 band-fr c!
   bands-live 0= if
     314 @ band-old !     \ save whatever is there ONCE
     'band-tramp 314 !
   then
   -1 to bands-live
+  7f dc0d c!               \ CIA1 irq off: the jiffy must not race us
+  dc0d c@ drop             \ ack any pending CIA irq
   d011 c@ 7f and d011 c!   \ raster compare bit 8 = 0: our lines are all < 256
   1 d01a c!                \ vic irq mask: raster only
   7f d019 c!               \ ack anything already pending
@@ -203,12 +222,22 @@ end-code
   bands-live if
     0 d01a c!              \ no more vic irqs
     7f d019 c!
+    81 dc0d c!             \ CIA1 timer-A irq back on (kernal default)
     band-old @ 314 !       \ back to whoever had it
     0 to bands-live
   then
   ei ;
 
 : ?bands ( -- f ) bands-live ;
+
+( Wait for the next frame, locked to the beam - one tick per
+  frame, released in the lower border just after the last band.
+  This is where a split scroller does its character move and
+  updates the bands: the beam is below the playfield, so nothing
+  tears, and band 0 does not re-read its scroll until the top of
+  the next frame. It replaces waiting on the jiffy clock, which
+  bands-on has stopped and which never tracked the beam anyway. )
+: band-sync ( -- ) band-fr c@ begin dup band-fr c@ <> until drop ;
 
 hide bx
 

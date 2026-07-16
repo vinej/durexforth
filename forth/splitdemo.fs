@@ -1,20 +1,38 @@
-\ splitdemo.fs - a playfield that scrolls above a panel that
-\ does not.
+\ splitdemo.fs - a message that scrolls above a panel that does
+\ not.
 \
 \   include splitdemo
 \   splitdemo        \ run/stop quits
 \
-\ This is the split screen every C64 game has, and the point of
-\ it is the one register both halves want and only one can
-\ have. $d016 holds the fine x-scroll for the WHOLE frame, so
-\ scrolling the playfield with it drags the score panel along
-\ too - unless something changes $d016 back in the few
-\ microseconds between the two. That something is a raster
-\ interrupt, and split.fs is it.
+\ The split screen every C64 game has, and the point of it is
+\ the one register both halves want and only one can have.
+\ $d016 holds the fine x-scroll for the WHOLE frame, so scrolling
+\ the top with it would drag the panel along too - unless a
+\ raster interrupt puts $d016 back in the few microseconds
+\ between the two bands. split.fs does exactly that.
 \
-\ Watch the join: the grid and the sentence glide left, the
-\ panel underneath never moves a pixel. Both are on one screen
-\ sharing one scroll register.
+\ Three things make this read cleanly, and all three were wrong
+\ in the first version:
+\
+\ 1. TIMING IS LOCKED TO THE BEAM, not the jiffy clock. bands-on
+\    turns the clock off; band-sync waits for the raster handler
+\    to tick once a frame, in the lower border. So the stepping
+\    is one pixel per frame exactly, on PAL or NTSC, and the
+\    character move happens below the playfield where it cannot
+\    tear - and before band 0 re-reads its scroll at the top of
+\    the next frame, so the offset and the characters always
+\    agree. Out of step, that disagreement is the classic
+\    one-frame jump right, then back left.
+\
+\ 2. ONLY THE TEXT ROWS ARE WRAPPED. The playfield is solid
+\    blue, and fine-scrolling a solid colour is invisible, so
+\    the fine scroll can shift the whole band while the coarse
+\    wrap touches just the three rows that carry the message.
+\    Wrapping all twenty would overrun the border window and
+\    tear; three rows finish with time to spare.
+\
+\ 3. THE PANEL NEVER FLICKERS, because bands-on owns the
+\    interrupt - no CIA jiffy racing the raster (see split.fs).
 
 require split
 require scroll
@@ -22,16 +40,17 @@ require keyb
 
 base @ hex
 
-#20 constant panel-row          \ the panel starts here...
-#211 constant panel-line        \ ...which is this raster line:
-                                \ the display opens at line 51,
-                                \ so char row N starts at 51+8N.
+#20 constant panel-row          \ the panel starts on this char row
+#211 constant panel-line        \ = raster 51 + 8*20, its first line
+                                \ (the display opens at line 51, the
+                                \ same on PAL and NTSC, so this split
+                                \ lands in the right place on both)
 
 cc constant curflag             \ non-zero stops the cursor blinking
 
-( Frames per pixel. The panel proves itself either way, but
-  slow enough to read is the point. )
-#4 value pspeed
+( Frames per pixel: bigger is slower. 3 reads well; 1 is a fast
+  scroller, 8 an unhurried banner. )
+#3 value pspeed
 
 : p>s ( c -- c' ) dup #64 < if exit then #64 - ;   \ petscii -> screen
 
@@ -40,66 +59,53 @@ cc constant curflag             \ non-zero stops the cursor blinking
   scr-at to pp
   0 do dup i + c@ p>s  pp i + c! loop drop ;
 
-: playfield ( -- )      \ rows 0..19: a grid that shows the motion
-  panel-row 0 do
-    #40 0 do
-      i 3 and 0= if #43 else #32 then   \ '+' every fourth column
-      i j scr-at c!
-      #14 i j col-at c!
-    loop
-  loop
-  s" this half glides " 2 #9 put
-  s" the one below does not " 2 #11 put ;
+: playfield ( -- )
+  \ solid blue; the message sits on rows 9-11, and because the
+  \ empty rows are a single colour the fine scroll leaves them
+  \ visibly unchanged while it glides the text
+  s" this half glides right ->" 2 #9 put
+  s" the panel below stays put" 2 #11 put
+  1 #40 3 0 #9 tile-col! ;      \ white, so wrapping chars (not
+                                \ colour) keeps the colour uniform
 
-: panel ( -- )          \ rows 20..24: the part that must hold still
-  #40 0 do
-    #45 i panel-row scr-at c!           \ a rule along the top
-  loop
+: panel ( -- )
+  #40 0 do #45 i panel-row scr-at c! loop   \ a rule along the top
   s" score 000000    lives 3" 2 #22 put
-  #5 0 do
-    #40 0 do  1 i panel-row j + col-at c!  loop
-  loop ;
+  1 #40 5 0 panel-row tile-col! ;
 
-0 value fine            \ pixels since the last cell step
-0 value fc              \ frames since the last pixel
+0 value fine                    \ pixels moved since the last wrap
+0 value fc                      \ frames since the last pixel
 
-: frame ( -- ) a2 c@ begin dup a2 c@ <> until drop ;
-
-: step ( -- )
+: h-step ( -- )
   fc 1+ to fc
   fc pspeed < if exit then
   0 to fc
   fine 1+ to fine
-  fine 8 = if 0 to fine  0 0 #40 panel-row wrap-right then
-  ( band 0 only. Setting $d016 here instead would work for a
-    single frame and then be overwritten by the next split -
-    the bands own the register now. )
-  fine 0 band-xscroll! ;
+  fine 8 = if 0 to fine  0 #9 #40 3 wrap-right then
+  fine 0 band-xscroll! ;        \ move band 0 only; the panel is band 1
 
 : splitdemo ( -- )
   1 curflag c!
+  0 to col-scroll               \ blue and white are each uniform: the
+                                \ wrap never needs to touch colour ram
   page
-  playfield
-  panel
+  6 d021 c!  e d020 c!          \ blue screen, light border...
+  playfield  panel
 
   bands-clear
-  ( Band 0 - the playfield. col38 is part of the band, because
-    it lives in $d016 too: it makes the vic paint border over
-    the column that is only half scrolled in. )
-  6 d021 c!  e d020 c!  col38  0 xscroll!
+  6 d021 c!  e d020 c!  col38  0 xscroll!   \ band 0: the playfield
   #1 band+
-  ( Band 1 - the panel. Same snapshot, taken with the scroll
-    back at zero. That single difference is the whole demo. )
-  0 d021 c!  0 d020 c!  col38  0 xscroll!
+  0 d021 c!  0 d020 c!  col38  0 xscroll!   \ band 1: the panel
   panel-line band+
   bands-on
 
   0 to fine  0 to fc
-  begin frame step k-stop kb? until
+  begin band-sync h-step k-stop kb? until
 
   bands-off
   0 xscroll! col40
   6 d021 c!  e d020 c!
+  -1 to col-scroll              \ restore the default
   page 0 curflag c! ;
 
 base !

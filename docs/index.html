@@ -3265,6 +3265,10 @@ raster-off</pre>
 <dd>
 <p>Start. bands-off <em>(&#8201;&#8212;&#8201;)</em> :: Stop and hand <code>$0314</code> back.</p>
 </dd>
+<dt class="hdlist1">band-sync <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Wait for the next frame, locked to the beam.</p>
+</dd>
 <dt class="hdlist1">?bands <em>(&#8201;&#8212;&#8201;f )</em> </dt>
 <dd>
 <p>True while bands are running.</p>
@@ -3327,20 +3331,14 @@ The handler is assembly, and has to be. A colon-threaded callback cannot do this
 </tr>
 </table>
 </div>
-<div class="admonitionblock caution">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Caution</div>
-</td>
-<td class="content">
-<code>split</code> takes over <code>$0314</code>, and chains to whatever it found there. It coexists with <code>irq!</code> and <code>sid-on</code> only in that order — install those <strong>first</strong>, <code>bands-on</code> <strong>last</strong>, and remove them in reverse. Otherwise <code>irq-off</code> restores a vector saved before the band handler existed and takes the bands with it.
-</td>
-</tr>
-</table>
+<div class="paragraph">
+<p><strong><code>bands-on</code> owns the interrupt.</strong> It turns the Kernal&#8217;s CIA timer interrupt off and makes the VIC raster the only source — because the two fighting is exactly what makes a naïve split flicker. The CIA handler runs some forty rasterlines with interrupts disabled, and whenever that straddles a band&#8217;s line the raster interrupt is serviced dozens of lines late and the band comes out a whole frame wrong. With the CIA interrupt off, the raster interrupt is serviced within a few cycles every time. The cost is that while bands run there is no jiffy clock and no Kernal keyboard scan: drive your timing from <code>band-sync</code>, read keys with <code>kb?</code> straight off the matrix, and put per-frame game logic in the foreground after <code>band-sync</code> rather than in <code>irq!</code> (which the CIA drove, and which is now silent). <code>bands-off</code> puts it all back.</p>
 </div>
 <div class="paragraph">
-<p><strong>Example.</strong> <code>include splitdemo</code> then <code>splitdemo</code> — a grid and a sentence gliding left above a score panel that never moves a pixel, both on one screen sharing one scroll register. RUN/STOP quits.</p>
+<p><code>band-sync</code> ticks once per frame, released in the lower border just after the last band — which is precisely where a split scroller should do its work. The beam is below the playfield, so a character move there cannot tear, and band 0 does not re-read its scroll until the top of the next frame, so the coarse move and the fine offset always agree. Stepping off the jiffy clock instead — as the first version of the demo did — desynced the two and produced a one-frame jump right, then back left, on every wrap. It also locks the scroll speed to the actual refresh, so the demo runs correctly on both PAL and NTSC.</p>
+</div>
+<div class="paragraph">
+<p><strong>Example.</strong> <code>include splitdemo</code> then <code>splitdemo</code> — a message gliding across a solid playfield above a score panel that never moves a pixel, both on one screen sharing one scroll register, with no flicker and no tearing on either video standard. RUN/STOP quits.</p>
 </div>
 </div>
 <div class="sect2">

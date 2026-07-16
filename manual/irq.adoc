@@ -73,6 +73,7 @@ The `split` module (`include split`) does that. You describe a band by *setting 
 ((bands-clear)) _( -- )_ :: Forget every band.
 ((band+)) _( line -- )_ :: Add a band starting at raster _line_, taking the VIC's current registers as its look. Up to 8 bands.
 ((bands-on)) _( -- )_ :: Start. ((bands-off)) _( -- )_ :: Stop and hand `$0314` back.
+((band-sync)) _( -- )_ :: Wait for the next frame, locked to the beam.
 ((?bands)) _( -- f )_ :: True while bands are running.
 
 Each band carries `$d011`, `$d016`, `$d018`, `$d020` and `$d021` — the two scroll offsets, the graphics mode, the screen and charset pointers, and the two colours. That is everything that makes a band look like itself. A register a band does not care about simply keeps whatever the snapshot caught.
@@ -103,9 +104,11 @@ fine 0 band-xscroll!       \ band 0 glides; every other band is unmoved
 
 NOTE: The handler is assembly, and has to be. A colon-threaded callback cannot do this job: by the time the interpreter threaded its way to the register writes the beam would be lines past the boundary, and it could not re-arm `$d012` for the next band inside the same frame. Everything happens between the interrupt and the band's first pixel — the mode registers (`$d011`, `$d018`) are written in the line above, because the VIC decides at cycle 14 whether a line is a badline and re-reads `$d018` during the fetch that follows, so a write after that point is a whole line late and the row comes out garbled. The colours are the opposite: written that early they would recolour the tail of the line above, so the handler waits for the band's own line and writes them in the left border.
 
-CAUTION: `split` takes over `$0314`, and chains to whatever it found there. It coexists with `irq!` and `sid-on` only in that order — install those *first*, `bands-on` *last*, and remove them in reverse. Otherwise `irq-off` restores a vector saved before the band handler existed and takes the bands with it.
+*`bands-on` owns the interrupt.* It turns the Kernal's CIA timer interrupt off and makes the VIC raster the only source — because the two fighting is exactly what makes a naïve split flicker. The CIA handler runs some forty rasterlines with interrupts disabled, and whenever that straddles a band's line the raster interrupt is serviced dozens of lines late and the band comes out a whole frame wrong. With the CIA interrupt off, the raster interrupt is serviced within a few cycles every time. The cost is that while bands run there is no jiffy clock and no Kernal keyboard scan: drive your timing from `band-sync`, read keys with `kb?` straight off the matrix, and put per-frame game logic in the foreground after `band-sync` rather than in `irq!` (which the CIA drove, and which is now silent). `bands-off` puts it all back.
 
-*Example.* `include splitdemo` then `splitdemo` — a grid and a sentence gliding left above a score panel that never moves a pixel, both on one screen sharing one scroll register. RUN/STOP quits.
+`band-sync` ticks once per frame, released in the lower border just after the last band — which is precisely where a split scroller should do its work. The beam is below the playfield, so a character move there cannot tear, and band 0 does not re-read its scroll until the top of the next frame, so the coarse move and the fine offset always agree. Stepping off the jiffy clock instead — as the first version of the demo did — desynced the two and produced a one-frame jump right, then back left, on every wrap. It also locks the scroll speed to the actual refresh, so the demo runs correctly on both PAL and NTSC.
+
+*Example.* `include splitdemo` then `splitdemo` — a message gliding across a solid playfield above a score panel that never moves a pixel, both on one screen sharing one scroll register, with no flicker and no tearing on either video standard. RUN/STOP quits.
 
 === Background Music
 

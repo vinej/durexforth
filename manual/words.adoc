@@ -324,6 +324,58 @@ backup
 
 ((dos)) _( "cmd" -- )_ :: Send _cmd_ to the current device's command channel, and print the response. Note that the remainder of the line is treated as part of the command. This makes it possible to refer to file names that contain spaces, but means that `dos` and its command should be on their own line, or the last words on a line. Example: `dos scratch0:old file` will delete a file named _old file_.
 
+The `dos` module also provides a set of shortcuts so you don't have to remember the raw CBM DOS command letters. Like `dos`, each of these takes the remainder of the line as its argument (so file names may contain spaces), and so must be the last word on its line. All operate on drive 0 of the current device (as selected with `device`), which is correct for single-drive units such as the 1541.
+
+((scratch)) _( "name" -- )_ :: Delete a file. Example: `scratch old file`
+((rename)) _( "new=old" -- )_ :: Rename file _old_ to _new_. Example: `rename report=draft`
+((copy)) _( "new=old" -- )_ :: Copy file _old_ to a new file _new_. Example: `copy backup=durexforth`
+((newdisk)) _( "name,id" -- )_ :: Format the disk (full low-level format), giving it the name _name_ and two-character id _id_. Example: `newdisk my disk,42`
+((clear-disk)) _( "name" -- )_ :: Quickly clear the disk directory without a low-level format (only valid on an already-formatted disk). Example: `clear-disk my disk`
+((validate)) _( -- )_ :: Validate (collect) the disk: free blocks belonging to improperly-closed files and rebuild the BAM.
+((initialize)) _( -- )_ :: Make the drive re-read the disk's BAM and directory (e.g. after swapping disks).
+((status)) _( -- )_ :: Read and print the drive's status / error channel, e.g. `00, ok,00,00`.
+
+Use the built-in `device` word to choose which unit these operate on, e.g. `9 device`.
+
+==== Files
+
+The `file` module (`include file`) provides friendly words for reading and writing disk files, both *sequential* (a byte stream read or written start-to-finish) and *relative* (a random-access file of fixed-length records that you can position to by record number). You choose a small file number (2–14) for each open file, so several files can be open at once; 15 is reserved for the command channel.
+
+*Sequential files.*
+
+((fcreate)) _( c-addr u file# -- )_ :: Create the named file and open it for writing as _file#_. Example: `s" data" 2 fcreate`
+((fopen)) _( c-addr u file# -- )_ :: Open an existing file for reading.
+((fappend)) _( c-addr u file# -- )_ :: Open a file for appending (writes go after the existing contents).
+((fputc)) _( c file# -- )_ :: Write one byte to _file#_.
+((fwrite)) _( c-addr u file# -- )_ :: Write a string to _file#_.
+((fgetc)) _( file# -- c eof? )_ :: Read one byte from _file#_, and a flag that is true once the last byte has been read. (End-of-file is only known from the read that reaches it, hence the combined result.)
+((fread-type)) _( file# -- )_ :: Read the whole file and print it to the screen.
+((fclose)) _( file# -- )_ :: Close _file#_.
+
+....
+include file
+: save-it  s" data" 2 fcreate  s" HELLO WORLD" 2 fwrite  2 fclose ;
+: show-it  s" data" 2 fopen  2 fread-type  2 fclose ;
+....
+
+*Relative (random-access) files.* A relative file is made of fixed-length records; `record` positions the file to any record, after which the sequential read/write words operate on that record.
+
+((rel-create)) _( reclen c-addr u file# -- )_ :: Create a relative file with a record length of _reclen_ bytes (1–254) and open it as _file#_.
+((rel-open)) _( c-addr u file# -- )_ :: Open an existing relative file.
+((record)) _( n file# -- )_ :: Position _file#_ to record _n_ (records are numbered from 1). Follow with `fwrite`/`fputc` to write the record or `fread-type`/`fgetc` to read it.
+((rel-close)) _( file# -- )_ :: Close a relative file (and its command channel).
+
+....
+include file
+: make-db  #10 s" people" 2 rel-create   \ 10-byte records
+  1 2 record  s" ANN" 2 fwrite
+  2 2 record  s" BOB" 2 fwrite
+  2 rel-close ;
+: read-2   s" people" 2 rel-open
+  2 2 record  2 fread-type          \ prints record 2: BOB
+  2 rel-close ;
+....
+
 ==== Low-Level Device I/O
 
 For more advanced uses, words corresponding to the standard Commodore Kernal IO routines are available by including the `io` module.

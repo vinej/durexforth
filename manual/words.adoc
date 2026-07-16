@@ -377,6 +377,10 @@ Pressing kbd:[RESTORE] throws exception -28, "user interrupt". This example show
 ((included)) _( filenameptr filenamelen -- )_ :: Open and interpret a text file.
 ((require)) _( "filename" -- )_ :: Like include, except that load is skipped if the file is already loaded.
 ((required)) _( filenameptr filenamelen -- )_ :: Like included, except that load is skipped if the file is already loaded.
+
+WARNING: *Put nothing after a `require` on its line — not even a comment.* An include reads its file's lines into the 88-byte input buffer at `$0200`, and when it nests it must first step that buffer past whatever of the outer line has not been read yet. A bare `require` has been read to the end by the time it runs, so it costs nothing and the nested file gets the whole buffer. Add a trailing `\ comment` and the line is *not* finished, so the buffer steps forward by its full width — and two or three levels of that walks off the end of `$0258` into the Kernal's open-file tables, whereupon the include quietly stops interpreting, or hangs. It fails silently: the words simply are not there afterwards. Keep source lines short for the same reason — a line wider than the buffer is truncated mid-word.
+
+NOTE: Nesting from *disk* is also capped by the drive: a 1541 has three buffers free, so at most three files can be open at once. A four-deep chain answers `70, no channel`. Modules that are resident, or served from an EasyFlash cartridge's ROM filesystem, do not consume a drive channel and so do not count.
 ((loadb)) _( filenameptr filenamelen dst -- endaddr )_ :: Load file to _dst_.
 Returns the address after last written byte, or 0 on failure.
 ((saveb)) _( start end+1 filenameptr filenamelength -- )_ :: Save file. _Start_ = start address of memory area. _End+1_ = end address of memory area plus 1.

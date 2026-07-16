@@ -7,7 +7,14 @@
 \ a screen/charset, getting an editable copy of the ROM font,
 \ redefining characters, and stamping tiles onto the screen.
 
-require sprite          \ rdb (source pixel rows), sp-base
+\ rdb (source pixel rows), sp-base.
+\ Nothing may follow a require on its line - not even a comment.
+\ include only advances TIB_PTR past a line it has NOT finished
+\ reading, so a bare require costs nothing, while a commented one
+\ costs the whole line. Three levels of that walks off the end of
+\ the 88-byte TIB at $258, into the kernal's open-file tables, and
+\ the include quietly stops interpreting.
+require sprite
 
 base @ hex
 

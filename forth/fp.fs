@@ -31,7 +31,8 @@
 \
 \ Needs basic rom, which fbasic banks in around each call.
 
-require compat          \ 0> lives there, and f> needs it
+\ 0> lives there, and f> needs it. Bare on purpose - see charset.fs.
+require compat
 
 base @ hex
 

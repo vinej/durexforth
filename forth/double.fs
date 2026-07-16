@@ -18,7 +18,8 @@
 \   #12345 s>d d.          \ prints 12345
 \   #100 s>d #200 s>d d< . \ prints -1
 
-require compat          \ 2@ 2! 2swap dabs
+\ 2@ 2! 2swap dabs. Bare on purpose - see charset.fs.
+require compat
 
 \ --- comparisons with zero -----------------------------------
 \ or'ing the halves is enough for zero: it is 0 only if both are.

@@ -7,7 +7,8 @@
 \ back to where it started, and draw the newly exposed edge. Done
 \ right the two are invisible: the picture just keeps moving.
 
-require charset         \ scr-at, col-at
+\ scr-at, col-at. Bare on purpose - see charset.fs.
+require charset
 
 base @ hex
 

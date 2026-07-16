@@ -41,6 +41,14 @@
 \ raster compare cannot fire twice on the same line - the
 \ second band would be a frame late.
 \
+\ THE SEAM RULE. A band's registers are written in the line
+\ ABOVE it (the handler explains why there is no better time),
+\ so the tail of that line takes the new colours and scroll.
+\ Make the seam a line that cannot show it: a solid row of
+\ reverse spaces in a fixed colour, or the same colours on both
+\ sides of the boundary. One designed row buys a pixel-clean
+\ split everywhere else.
+\
 \ THE HANDLER IS ASSEMBLY, and it has to be. A forth callback
 \ cannot do this job: by the time the interpreter had threaded
 \ its way to the register writes the beam would be lines past
@@ -104,30 +112,33 @@ d019 lda,               \ vic irq status
 
 band-i ldx,
 
-( The mode registers go first, and land in the line ABOVE the
-  band. They have to. The vic decides at cycle 14 of a line
-  whether that line is a badline, and if it is it re-reads
-  $d018 during the fetch that follows - so a write arriving
-  after cycle 14 is a whole line late and the row comes out
-  holding the previous row's characters. We are still in the
-  line above here, whose fetch is long done, so writing early
-  is free: it is the next line that reads these. )
+( ALL the registers land in the line ABOVE the band, and that is
+  a considered retreat, not carelessness. Two vic facts force it:
+
+  - the vic decides at cycle 14 of a line whether that line is a
+    badline, and re-reads $d018 during the fetch that follows -
+    so the mode registers must arrive before the band's first
+    line begins. Early is the only correct time for them.
+
+  - on a badline the vic STEALS THE CPU for cycles 12-54, and a
+    band aligned to a character row starts ON a badline. The
+    first version waited for the band's own line so the colours
+    would land invisibly in its left border - and the stall held
+    those writes until cycle ~55, two-thirds across the visible
+    line, at a position that wobbled with interrupt jitter. A
+    wiggling seam, drawn by the fix itself.
+
+  Writing everything a line early is immune to all of that. The
+  price is honest and documented: the TAIL of the line above the
+  band takes the band's colours and scroll. Make that line
+  something that cannot show it - a solid separator row of
+  reverse spaces in a fixed colour, or matching colours across
+  the seam - and the split is pixel-clean. splitdemo does it. )
 band-d011 lda,x  d011 sta,
 band-d018 lda,x  d018 sta,
-
-( Colour is the exact opposite. Written this early it would
-  recolour the tail of the line above and leave a bright stub
-  hanging off the band. So wait for the band's own line and
-  write them in the left border, before any of it is drawn.
-  The wait costs most of a rasterline and is worth it. )
-band-line lda,x
-2 @:
-d012 cmp,
-2 @@ bne,
-
+band-d016 lda,x  d016 sta,
 band-d020 lda,x  d020 sta,
 band-d021 lda,x  d021 sta,
-band-d016 lda,x  d016 sta,
 
 inx,                    \ on to the next band, round the frame
 band-n cpx,

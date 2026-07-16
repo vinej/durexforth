@@ -48,9 +48,12 @@ base @ hex
 
 cc constant curflag             \ non-zero stops the cursor blinking
 
-( Frames per pixel: bigger is slower. 3 reads well; 1 is a fast
-  scroller, 8 an unhurried banner. )
-#3 value pspeed
+( Frames per pixel - and a real trade, because the vic has no
+  sub-pixel scroll. 1 is the smoothest motion the machine can
+  make and also the fastest, a brisk 60 pixels a second; the
+  higher you go the slower and the more the eye sees the pixel
+  steps as steps. Change it live:  2 to pspeed )
+3 value pspeed
 
 : p>s ( c -- c' ) dup #64 < if exit then #64 - ;   \ petscii -> screen
 
@@ -68,6 +71,17 @@ cc constant curflag             \ non-zero stops the cursor blinking
   1 #40 3 0 #9 tile-col! ;      \ white, so wrapping chars (not
                                 \ colour) keeps the colour uniform
 
+( The seam row: solid black, drawn with reverse spaces. This is
+  the one designed row the split needs - the band's registers
+  land in the tail of the line above it, and solid ink is the
+  thing register changes cannot show through: not the background
+  switch, not the scroll. See split.fs, THE SEAM RULE. )
+: seam ( -- )
+  #40 0 do
+    #160 i panel-row 1- scr-at c!       \ 160 = reverse space
+  loop
+  0 #40 1 0 panel-row 1- tile-col! ;
+
 : panel ( -- )
   #40 0 do #45 i panel-row scr-at c! loop   \ a rule along the top
   s" score 000000    lives 3" 2 #22 put
@@ -76,24 +90,38 @@ cc constant curflag             \ non-zero stops the cursor blinking
 0 value fine                    \ pixels moved since the last wrap
 0 value fc                      \ frames since the last pixel
 
+( The order in the wrap branch is deliberate, and it is the
+  demo's one piece of real timing. band-sync releases us at
+  ~line 212, and two deadlines follow: band 0 re-reads its
+  scroll register at line 0, ~51 lines away - but the beam does
+  not redraw the text rows until line ~123 of the NEXT frame,
+  ~170 lines away. The register write is tiny and the 3-row
+  character move is most of the short budget, so the register
+  goes FIRST and the characters take the long one. The other
+  way round, a slightly slow move leaves the new offset a frame
+  behind the new characters: an 8-pixel stutter at every wrap. )
 : h-step ( -- )
   fc 1+ to fc
   fc pspeed < if exit then
   0 to fc
-  fine 1+ to fine
-  fine 8 = if 0 to fine  0 #9 #40 3 wrap-right then
-  fine 0 band-xscroll! ;        \ move band 0 only; the panel is band 1
+  fine 1+ to fine  fine 7 and to fine
+  fine 0 band-xscroll!          \ band 0 only; the panel is band 1
+  fine 0= if 0 #9 #40 3 wrap-right then ;
 
 : splitdemo ( -- )
   1 curflag c!
   0 to col-scroll               \ blue and white are each uniform: the
                                 \ wrap never needs to touch colour ram
   page
-  6 d021 c!  e d020 c!          \ blue screen, light border...
-  playfield  panel
+  6 d021 c!  0 d020 c!          \ blue screen, black border
+  playfield  seam  panel
 
+  ( Both bands carry the SAME border. $d020 is written at the
+    seam like everything else, and a border change lands as a
+    mid-line notch in the side border, wobbling with interrupt
+    jitter. A border that does not change cannot notch. )
   bands-clear
-  6 d021 c!  e d020 c!  col38  0 xscroll!   \ band 0: the playfield
+  6 d021 c!  0 d020 c!  col38  0 xscroll!   \ band 0: the playfield
   #1 band+
   0 d021 c!  0 d020 c!  col38  0 xscroll!   \ band 1: the panel
   panel-line band+
@@ -104,7 +132,7 @@ cc constant curflag             \ non-zero stops the cursor blinking
 
   bands-off
   0 xscroll! col40
-  6 d021 c!  e d020 c!
+  6 d021 c!  e d020 c!          \ back to the boot look
   -1 to col-scroll              \ restore the default
   page 0 curflag c! ;
 

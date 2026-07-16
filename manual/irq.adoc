@@ -127,6 +127,61 @@ The `sprite` module adds words for multicolor sprites, priority, data pointers, 
 ((sp-bg-coll)) _( -- b )_ :: Read the sprite-background collision register (`$d01f`).
 ((sp-hit?)) _( b n -- f )_ :: Test whether sprite _n_ collided, given a byte read from `sp-sp-coll`/`sp-bg-coll`.
 
+=== Characters and Tiles
+
+The `charset` module (`include charset`) covers the other way to draw a game. The C64 is a character machine: a screen of characters is 1000 bytes instead of the bitmap's 8000, it redraws in a fraction of the time, and you get colour per cell for free. Most C64 games build their world out of a redefined 8x8 font rather than the bitmap.
+
+*Pointing the VIC.* The VIC can only see one 16K bank at a time, and a screen or charset must live inside it. Colour memory is the exception — it is wired at `$d800` regardless.
+
+((vic-bank@)) _( -- n )_ :: The bank the VIC is currently looking at, 0-3. (Bank 0 is `$0000`, bank 3 is `$c000`.)
+((vic-bank!)) _( n -- )_ :: Point the VIC at bank _n_.
+((vic-base)) _( -- addr )_ :: Base address of the current bank.
+((screen@)) ((screen!)) _( -- addr )_ / _( addr -- )_ :: Get/set the screen memory address. Must be `$400`-aligned and inside the current bank. `screen!` also moves `sp-base` with it, since the sprite data pointers live at screen+`$3f8`.
+((charset@)) ((charset!)) _( -- addr )_ / _( addr -- )_ :: Get/set the character set address. Must be `$800`-aligned and inside the current bank.
+
+NOTE: In practice your charset cannot live in bank 0. durexForth's own code runs from `$0801` up to `here` (around `$38xx`), which swallows every `$800`-aligned slot in `$0000-$3fff`. So a custom charset means moving the VIC to bank 1 (`$4000`), where there is free RAM between `here` and the dictionary — and the screen has to move with it, because the VIC sees one bank at a time.
+
+NOTE: durexForth prints through the KERNAL, which always writes to `$0400`. Once the screen has moved, the prompt goes on writing to `$0400` and you stop seeing what you type. That is expected — a game draws its own screen — but it means that to *watch* a font change you have to bring the current text along, as the example does.
+
+*The ROM font.* The character generator ROM is not normally reachable: it only appears, over the I/O area at `$d000`, when `CHAREN` is 0. `charrom>` handles the banking (and the interrupt lock it needs, since the KERNAL's IRQ cannot ack the timer while I/O is hidden), so you can take a copy and edit it.
+
+((charrom)) _( -- addr )_ :: Address of the upper case + graphics set in ROM.
+((charrom-lc)) _( -- addr )_ :: Address of the lower case set. This is the one durexForth itself displays.
+((charrom>)) _( src dst -- )_ :: Copy one 2K set out of ROM to RAM.
+((chardef)) _( c -- addr )_ :: Address of character _c_'s 8 bytes in the current charset.
+((char-data)) _( addr -- )_ :: Read 8 rows of pixels from the source, like `sp-data`: any character that is not `.` sets a pixel.
+
+Take a copy of the font into bank 1, bring the text along so there is something to look at, point the VIC at it, then redefine a character — every `a` on screen changes at once:
+
+....
+include charset
+charrom-lc $4800 charrom>   \ copy the font we are looking at
+$400 $4000 #1000 move       \ carry the current text over to the new screen
+1 vic-bank!  $4000 screen!  $4800 charset!
+1 chardef char-data         \ screen code 1 is "a"
+########
+#......#
+#......#
+########
+#......#
+#......#
+#......#
+########
+....
+
+*Tiles.* A tile is nothing more than _w*h_ character codes stored row by row, so a 2x2 tile is four bytes. Build them with `create ... c,`.
+
+((scr-at)) _( x y -- addr )_ :: Screen address of character cell _x,y_.
+((col-at)) _( x y -- addr )_ :: Colour memory address of cell _x,y_.
+((tile!)) _( addr w h x y -- )_ :: Stamp a _w_ by _h_ tile onto the screen at _x,y_.
+((tile-col!)) _( col w h x y -- )_ :: Paint colour _col_ over the same _w_ by _h_ area.
+
+....
+create brick 1 c, 2 c, 3 c, 4 c,
+brick 2 2 #10 #5 tile!      \ stamp it at column 10, row 5
+2 2 2 #10 #5 tile-col!      \ and colour it red
+....
+
 === VIC-II Register Constants
 
 The `vic` module (`include vic`) defines readable names for the VIC-II registers — `border`, `bgcol`, `vic-ctrl1`, `vic-raster`, `sp-enable`, `sp-sp-hit`, and so on — so game code reads clearly instead of using bare addresses. See the module source for the full list.

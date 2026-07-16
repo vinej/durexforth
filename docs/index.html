@@ -443,7 +443,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <span id="author2" class="author">Kevin Lee Reno</span><br>
 <span id="author3" class="author">Poindexter Frink</span><br>
 <span id="author4" class="author">Richard Halkyard</span><br>
-<span id="revdate">2026-07-15</span>
+<span id="revdate">2026-07-16</span>
 </div>
 </div>
 <div id="content">
@@ -530,6 +530,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_joystick">Joystick</a></li>
 <li><a href="#_mouse">Mouse</a></li>
 <li><a href="#_sprite_helpers">Sprite Helpers</a></li>
+<li><a href="#_characters_and_tiles">Characters and Tiles</a></li>
 <li><a href="#_vic_ii_register_constants">VIC-II Register Constants</a></li>
 <li><a href="#_example_a_bouncing_ball">Example: a bouncing ball</a></li>
 <li><a href="#_example_raster_colour_bars">Example: raster colour bars</a></li>
@@ -3048,6 +3049,140 @@ mouse-init
 <p>Test whether sprite <em>n</em> collided, given a byte read from <code>sp-sp-coll</code>/<code>sp-bg-coll</code>.</p>
 </dd>
 </dl>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_characters_and_tiles">Characters and Tiles</h3>
+<div class="paragraph">
+<p>The <code>charset</code> module (<code>include charset</code>) covers the other way to draw a game. The C64 is a character machine: a screen of characters is 1000 bytes instead of the bitmap&#8217;s 8000, it redraws in a fraction of the time, and you get colour per cell for free. Most C64 games build their world out of a redefined 8x8 font rather than the bitmap.</p>
+</div>
+<div class="paragraph">
+<p><strong>Pointing the VIC.</strong> The VIC can only see one 16K bank at a time, and a screen or charset must live inside it. Colour memory is the exception — it is wired at <code>$d800</code> regardless.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">vic-bank@ <em>(&#8201;&#8212;&#8201;n )</em> </dt>
+<dd>
+<p>The bank the VIC is currently looking at, 0-3. (Bank 0 is <code>$0000</code>, bank 3 is <code>$c000</code>.)</p>
+</dd>
+<dt class="hdlist1">vic-bank! <em>( n&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Point the VIC at bank <em>n</em>.</p>
+</dd>
+<dt class="hdlist1">vic-base <em>(&#8201;&#8212;&#8201;addr )</em> </dt>
+<dd>
+<p>Base address of the current bank.</p>
+</dd>
+<dt class="hdlist1">screen@ screen! <em>(&#8201;&#8212;&#8201;addr )</em> / <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Get/set the screen memory address. Must be <code>$400</code>-aligned and inside the current bank. <code>screen!</code> also moves <code>sp-base</code> with it, since the sprite data pointers live at screen+<code>$3f8</code>.</p>
+</dd>
+<dt class="hdlist1">charset@ charset! <em>(&#8201;&#8212;&#8201;addr )</em> / <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Get/set the character set address. Must be <code>$800</code>-aligned and inside the current bank.</p>
+</dd>
+</dl>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+In practice your charset cannot live in bank 0. durexForth&#8217;s own code runs from <code>$0801</code> up to <code>here</code> (around <code>$38xx</code>), which swallows every <code>$800</code>-aligned slot in <code>$0000-$3fff</code>. So a custom charset means moving the VIC to bank 1 (<code>$4000</code>), where there is free RAM between <code>here</code> and the dictionary — and the screen has to move with it, because the VIC sees one bank at a time.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+durexForth prints through the KERNAL, which always writes to <code>$0400</code>. Once the screen has moved, the prompt goes on writing to <code>$0400</code> and you stop seeing what you type. That is expected — a game draws its own screen — but it means that to <strong>watch</strong> a font change you have to bring the current text along, as the example does.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>The ROM font.</strong> The character generator ROM is not normally reachable: it only appears, over the I/O area at <code>$d000</code>, when <code>CHAREN</code> is 0. <code>charrom&gt;</code> handles the banking (and the interrupt lock it needs, since the KERNAL&#8217;s IRQ cannot ack the timer while I/O is hidden), so you can take a copy and edit it.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">charrom <em>(&#8201;&#8212;&#8201;addr )</em> </dt>
+<dd>
+<p>Address of the upper case + graphics set in ROM.</p>
+</dd>
+<dt class="hdlist1">charrom-lc <em>(&#8201;&#8212;&#8201;addr )</em> </dt>
+<dd>
+<p>Address of the lower case set. This is the one durexForth itself displays.</p>
+</dd>
+<dt class="hdlist1">charrom&gt; <em>( src dst&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Copy one 2K set out of ROM to RAM.</p>
+</dd>
+<dt class="hdlist1">chardef <em>( c&#8201;&#8212;&#8201;addr )</em> </dt>
+<dd>
+<p>Address of character <em>c</em>'s 8 bytes in the current charset.</p>
+</dd>
+<dt class="hdlist1">char-data <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Read 8 rows of pixels from the source, like <code>sp-data</code>: any character that is not <code>.</code> sets a pixel.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>Take a copy of the font into bank 1, bring the text along so there is something to look at, point the VIC at it, then redefine a character — every <code>a</code> on screen changes at once:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include charset
+charrom-lc $4800 charrom&gt;   \ copy the font we are looking at
+$400 $4000 #1000 move       \ carry the current text over to the new screen
+1 vic-bank!  $4000 screen!  $4800 charset!
+1 chardef char-data         \ screen code 1 is "a"
+########
+#......#
+#......#
+########
+#......#
+#......#
+#......#
+########</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Tiles.</strong> A tile is nothing more than <em>w*h</em> character codes stored row by row, so a 2x2 tile is four bytes. Build them with <code>create &#8230;&#8203; c,</code>.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">scr-at <em>( x y&#8201;&#8212;&#8201;addr )</em> </dt>
+<dd>
+<p>Screen address of character cell <em>x,y</em>.</p>
+</dd>
+<dt class="hdlist1">col-at <em>( x y&#8201;&#8212;&#8201;addr )</em> </dt>
+<dd>
+<p>Colour memory address of cell <em>x,y</em>.</p>
+</dd>
+<dt class="hdlist1">tile! <em>( addr w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Stamp a <em>w</em> by <em>h</em> tile onto the screen at <em>x,y</em>.</p>
+</dd>
+<dt class="hdlist1">tile-col! <em>( col w h x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Paint colour <em>col</em> over the same <em>w</em> by <em>h</em> area.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>create brick 1 c, 2 c, 3 c, 4 c,
+brick 2 2 #10 #5 tile!      \ stamp it at column 10, row 5
+2 2 2 #10 #5 tile-col!      \ and colour it red</pre>
+</div>
 </div>
 </div>
 <div class="sect2">

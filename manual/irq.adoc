@@ -262,6 +262,16 @@ include scroll
 : step bump  fine 0< if wrapf then  fine xscroll! ;
 ....
 
+*Example: banners.* The `scrolldemo` module wraps both directions at once — a sentence cycling left to right across the middle of the screen, and a word running top to bottom down a column, both under the interrupt while the prompt stays live:
+
+....
+include scrolldemo
+scrollers        \ both banners start moving
+stop-scrollers   \ stop
+....
+
+It wraps rather than scrolls, so the sentences cycle forever with nothing feeding them new characters. It moves a whole character at a time, because the fine scroll shifts the *entire* screen and so cannot move one banner without dragging the other along — for one smooth banner, use the fine+coarse loop below.
+
 `step` moves row 15 one pixel left. Every eighth call `fine` runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it. Call `step` from `irq!` and the row scrolls at 60 pixels a second; add a word that draws column 39 inside `wrapf` and it scrolls forever.
 
 === VIC-II Register Constants

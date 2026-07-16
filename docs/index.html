@@ -3538,6 +3538,19 @@ A side-scroller wants <code>col38</code>. Without it the column being scrolled i
 </div>
 </div>
 <div class="paragraph">
+<p><strong>Example: banners.</strong> The <code>scrolldemo</code> module wraps both directions at once — a sentence cycling left to right across the middle of the screen, and a word running top to bottom down a column, both under the interrupt while the prompt stays live:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include scrolldemo
+scrollers        \ both banners start moving
+stop-scrollers   \ stop</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It wraps rather than scrolls, so the sentences cycle forever with nothing feeding them new characters. It moves a whole character at a time, because the fine scroll shifts the <strong>entire</strong> screen and so cannot move one banner without dragging the other along — for one smooth banner, use the fine+coarse loop below.</p>
+</div>
+<div class="paragraph">
 <p><code>step</code> moves row 15 one pixel left. Every eighth call <code>fine</code> runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it. Call <code>step</code> from <code>irq!</code> and the row scrolls at 60 pixels a second; add a word that draws column 39 inside <code>wrapf</code> and it scrolls forever.</p>
 </div>
 </div>

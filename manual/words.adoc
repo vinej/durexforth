@@ -251,6 +251,28 @@ No built-in words will modify this region.
 ((type)) _( caddr u -- )_ :: Print a string.
 ((/string)) _( caddr u n -- caddr+n u-n )_ :: Adjust the string by _n_ characters.
 
+==== String Manipulation
+
+The `str` module (`include str`) adds friendly words for manipulating strings, which are ordinary `( addr len )` pairs. The slicing words (`left`, `right`, `mid`, `trim`) return a *view* into the same memory — nothing is copied — so a result is valid as long as its source is. The comparison and search words return flags or positions.
+
+((left)) _( addr u n -- addr n' )_ :: The first _n_ characters (fewer if the string is shorter). Example: `s" hello world" 5 left type` prints `hello`.
+((right)) _( addr u n -- addr' n' )_ :: The last _n_ characters. Example: `s" hello world" 5 right type` prints `world`.
+((mid)) _( addr u start len -- addr' n' )_ :: The substring of _len_ characters beginning at 0-based offset _start_. Example: `s" hello world" 6 5 mid type` prints `world`.
+((-leading)) _( addr u -- addr' u' )_ :: Remove leading spaces.
+((-trailing)) _( addr u -- addr u' )_ :: Remove trailing spaces.
+((trim)) _( addr u -- addr' u' )_ :: Remove both leading and trailing spaces.
+((str=)) _( a1 u1 a2 u2 -- f )_ :: True if the two strings are equal.
+((compare)) _( a1 u1 a2 u2 -- n )_ :: Order two strings: _-1_ if the first is less, _0_ if equal, _1_ if greater (byte values; on a common prefix the shorter string sorts first).
+((index-of)) _( addr u c -- i )_ :: The 0-based index of character _c_, or _-1_ if not present.
+((search)) _( a1 u1 a2 u2 -- i )_ :: The 0-based index of substring _( a2 u2 )_ within _( a1 u1 )_, or _-1_ if not present.
+((starts-with?)) _( a1 u1 a2 u2 -- f )_ :: True if the first string begins with the second.
+((upper)) _( addr u -- )_ :: Convert the string to upper case, *in place*.
+((lower)) _( addr u -- )_ :: Convert the string to lower case, *in place*.
+((>upper)) _( c -- C )_ :: Upper-case one character.
+((>lower)) _( C -- c )_ :: Lower-case one character.
+
+Because `upper` and `lower` modify the bytes in place, give them a writable buffer, not the transient area that `s"` returns.
+
 === Number Formatting
 
 For more info about number formatting, read Starting Forth.

@@ -20,7 +20,7 @@ SRC_DIR = forth
 SRC_NAMES = base debug v asm gfx gfxdemo rnd sin ls turtle fractals \
     sprite doloop sys labels mml mmldemo sid spritedemo \
     require compat timer float viceutil turnkey \
-    wordlist io open dos file iec see accept \
+    wordlist io open dos file str iec see accept \
     vic irq joy mouse mmlirq bounce rasterbars mousedemo
 SRCS = $(addprefix $(SRC_DIR)/,$(addsuffix .fs,$(SRC_NAMES)))
 

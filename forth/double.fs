@@ -45,6 +45,27 @@ require compat          \ 2@ 2! 2swap dabs
 
 : d>   ( d1 d2 -- f ) 2swap d< ;
 
+\ --- unsigned -------------------------------------------------
+\ Only three unsigned words are worth having. u<, u> and u. give
+\ the cell versions already; these are the double ones.
+\ The rest of the pattern is degenerate and deliberately absent:
+\ du0< would always be false (an unsigned number is never
+\ negative), du0= and du0<> are d0= and d0<>, du<> is d<>, and
+\ ud@/ud! are d@/d! - zero is zero, equality is equality, and
+\ bits are bits, whichever way you read the sign.
+
+( Same shape as d<, but the high halves compare unsigned too, so
+  $ffffffff is 4294967295 rather than -1. )
+: du<  ( ud1 ud2 -- f )
+  rot 2dup =
+  if   2drop u<
+  else swap u< >r 2drop r>
+  then ;
+
+: du>  ( ud1 ud2 -- f ) 2swap du< ;
+
+: ud.  ( ud -- ) <# #s #> type space ;
+
 \ --- print and store -----------------------------------------
 
 : d.   ( d -- ) tuck dabs <# #s rot sign #> type space ;

@@ -1350,6 +1350,29 @@ This may change with public demand.</p>
 #100 s&gt;d #200 s&gt;d d&lt; .         \ -1</pre>
 </div>
 </div>
+<div class="paragraph">
+<p><strong>Unsigned.</strong> Three unsigned words are genuinely different from their signed twins; the rest of the pattern is degenerate and deliberately absent. <code>u0&lt;</code> would always be false — an unsigned number is never negative — while <code>u0=</code>, <code>u0&lt;&gt;</code>, <code>u&lt;&gt;</code>, <code>u@</code> and <code>u!</code> are just <code>0=</code>, <code>0&lt;&gt;</code>, <code>&lt;&gt;</code>, <code>@</code> and <code>!</code>: zero is zero, equality is equality, and bits are bits whichever way you read the sign. The cell versions <code>u&lt;</code>, <code>u&gt;</code> and <code>u.</code> already exist.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">du&lt; du&gt; <em>( ud1 ud2&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>Compare two doubles, unsigned.</p>
+</dd>
+<dt class="hdlist1">ud. <em>( ud&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Print a double unsigned, followed by a space.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>-1 -1  #1 0  d&lt;  .    \ -1  : $ffffffff read signed is -1, so it is &lt; 1
+-1 -1  #1 0  du&lt; .    \  0  : read unsigned it is 4294967295, so it is not
+-1 -1 d.              \ -1
+-1 -1 ud.             \ 4294967295</pre>
+</div>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>

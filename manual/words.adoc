@@ -87,6 +87,18 @@ The words below are always present. The tests, print and store words are in the 
 #100 s>d #200 s>d d< .         \ -1
 ....
 
+*Unsigned.* Three unsigned words are genuinely different from their signed twins; the rest of the pattern is degenerate and deliberately absent. `u0<` would always be false — an unsigned number is never negative — while `u0=`, `u0<>`, `u<>`, `u@` and `u!` are just `0=`, `0<>`, `<>`, `@` and `!`: zero is zero, equality is equality, and bits are bits whichever way you read the sign. The cell versions `u<`, `u>` and `u.` already exist.
+
+((du<)) ((du>)) _( ud1 ud2 -- f )_ :: Compare two doubles, unsigned.
+((ud.)) _( ud -- )_ :: Print a double unsigned, followed by a space.
+
+....
+-1 -1  #1 0  d<  .    \ -1  : $ffffffff read signed is -1, so it is < 1
+-1 -1  #1 0  du< .    \  0  : read unsigned it is 4294967295, so it is not
+-1 -1 d.              \ -1
+-1 -1 ud.             \ 4294967295
+....
+
 NOTE: `d<` compares the low halves *unsigned* when the high halves match. It has to: a low half of `$ffff` means 65535 there, not -1. So `-1 0` is the double 65535, and `-1 0  1 0  d<` is correctly false - a signed low compare would get that backwards.
 
 ((dabs)) _( d -- ud )_ :: Produce the absolute value of _d_.

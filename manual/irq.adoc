@@ -104,7 +104,7 @@ The `mouse` module reads a Commodore 1351 proportional mouse. The 1351 does not 
 ((mouse-port)) _( n -- )_ :: Select the control port the mouse is in (`1` or `2`). Default is port 1.
 ((mouse-speed)) _( -- addr )_ :: Variable multiplying each frame's movement (default `1` = 1:1). In VICE the 1351 maps a full window sweep to only ~64 pot units, so the pointer barely travels at 1:1; the `mousedemo` sets `mouse-speed` to `5` so one swipe covers the whole 320-wide screen (and reaches the bottom). On real hardware, `1` or `2` is usually right.
 
-The movement range is set through `mouse-xmin` / `mouse-xmax` / `mouse-ymin` / `mouse-ymax` (default `0..319` by `0..199`); set them to suit sprite coordinates, then `mouse-init`. Positions past 255 use the sprite's 9th X bit automatically (via `sp-x!`).
+The movement range is set through `mouse-xmin` / `mouse-xmax` / `mouse-ymin` / `mouse-ymax` (default `0..319` by `0..199`); set them to suit sprite coordinates, then `mouse-init`. These bounds are the only thing that limits how far the pointer travels — if it seems to stop short of an edge, widen them (it is not a hardware or 9th-bit limitation). Sprite X is a 9-bit coordinate (0–511) and positions past 255 set the sprite's 9th X bit automatically via `sp-x!`; sprite Y is a single byte. Because the sprite's position is its top-left corner and the visible screen is roughly x 24–320, y 50–250, `mousedemo` clamps to `24..343` by `50..249` — tuned on real hardware so the arrow's tip reaches every edge while at least one pixel of the sprite stays on screen. That makes the pointer usable as a paint cursor that can address the whole visible canvas.
 
 ....
 include mouse

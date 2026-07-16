@@ -159,6 +159,7 @@ NOTE: This is not `float.fs`, which says of itself that it "cannot be used safel
 
 ((:)) _( "name" -- )_ :: Define the word with the given name and enter compilation state.
 ((:noname)) _( -- xt )_ :: Create an execution token and enter compilation state.
+((synonym)) _( "newname oldname" -- )_ :: Give an existing word a second name: `synonym endif then`. The new word behaves exactly like the old — immediacy included, so aliasing compile-time words works — and costs three bytes, its whole body being one `jmp` to the old word. The one thing that cannot reach through a synonym is `to`: it patches the bytes after an execution token, and a synonym's bytes are the jump target, not the value's storage.
 ((;)) _( -- )_ :: End the current definition, allow it to be found in the dictionary and go back to interpretation state.
 ((code)) _( "name" -- )_ :: Start assembling a new word.
 ((end-code))  :: End assembly.

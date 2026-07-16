@@ -1581,6 +1581,10 @@ This is not <code>float.fs</code>, which says of itself that it "cannot be used 
 <dd>
 <p>Create an execution token and enter compilation state.</p>
 </dd>
+<dt class="hdlist1">synonym <em>( "newname oldname"&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Give an existing word a second name: <code>synonym endif then</code>. The new word behaves exactly like the old — immediacy included, so aliasing compile-time words works — and costs three bytes, its whole body being one <code>jmp</code> to the old word. The one thing that cannot reach through a synonym is <code>to</code>: it patches the bytes after an execution token, and a synonym&#8217;s bytes are the jump target, not the value&#8217;s storage.</p>
+</dd>
 <dt class="hdlist1">; <em>(&#8201;&#8212;&#8201;)</em> </dt>
 <dd>
 <p>End the current definition, allow it to be found in the dictionary and go back to interpretation state.</p>

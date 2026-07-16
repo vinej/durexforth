@@ -161,6 +161,25 @@ does> dup @ to here
 
 : :noname here here to latestxt ] ;
 
+( "synonym new old" gives word old a
+  second name. The body is one jmp, so
+  new behaves exactly like old - state,
+  immediacy and all - for 3 bytes and 3
+  cycles. Only "to" sees the difference:
+  it patches the operand bytes after an
+  xt, and a synonym's operand bytes are
+  the jmp target, not the value.
+  jmp, here is the assembler's - loaded
+  above, shadowing the bare 4c c, one -
+  so it takes the target and lays down
+  the whole instruction. )
+: synonym ( "new old" -- )
+header
+bl word dup find ?dup 0= if
+count notfound then
+rot drop swap jmp,
+1 = if immediate then ;
+
 marker ---modules---
 
 .( wordlist..) include wordlist

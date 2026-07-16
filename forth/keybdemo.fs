@@ -21,6 +21,12 @@ base @ hex
 
 13 constant home
 
+( Lowest-numbered key currently held, -1 for none. Press any key
+  and this names its matrix number, so you can check a constant -
+  or work out one this module does not define - without a table. )
+: kb-any ( -- n | -1 )
+  #64 0 do i kb? if i unloop exit then loop -1 ;
+
 : keys ( -- )
   page
   begin
@@ -33,9 +39,15 @@ base @ hex
     k-x      kb? if ." X " then
     k-a      kb? if ." A " then
     k-s      kb? if ." S " then
-    k-lshift kb? if ." SHIFT " then
+    k-q      kb? if ." Q " then
+    k-w      kb? if ." W " then
+    k-lshift kb? if ." LSHIFT " then
+    k-rshift kb? if ." RSHIFT " then
     k-ctrl   kb? if ." CTRL " then
-    ."                     " cr
+    ."                     " cr cr
+    ." raw key = "
+    kb-any dup 0< if drop ." none " else . then
+    ."      " cr
     k-stop kb?
   until
   page ." keyb ok" cr ;

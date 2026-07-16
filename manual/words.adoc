@@ -323,8 +323,16 @@ The `str` module (`include str`) adds friendly words for manipulating strings, w
 ((lower)) _( addr u -- )_ :: Convert the string to lower case, *in place*.
 ((>upper)) _( c -- C )_ :: Upper-case one character.
 ((>lower)) _( C -- c )_ :: Lower-case one character.
+((cstr)) _( addr u "name" -- )_ :: Define _name_ as a durable, writable copy of the string. Everything else in the module returns views into the same memory or edits it in place; `cstr` is the one word that copies — take the copy *first* and the original survives whatever you do afterwards. The copy is alloted into the dictionary (u+7 bytes, permanent), and since it defines a word, use it at the top level, not inside a definition.
 
-Because `upper` and `lower` modify the bytes in place, give them a writable buffer, not the transient area that `s"` returns.
+....
+s" hello world" cstr msg
+msg cstr backup        \ a copy of the copy
+msg upper  msg type    \ HELLO WORLD
+backup type            \ hello world - untouched
+....
+
+Because `upper` and `lower` modify the bytes in place, give them a writable buffer, not the transient area that `s"` returns — a `cstr` copy, or `pad` for scratch work that nothing needs to outlive.
 
 === Number Formatting
 

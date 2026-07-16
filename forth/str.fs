@@ -16,12 +16,30 @@
 \   s" hello world" s" wor" search      .      \ 6
 \
 \ upper / lower change the bytes IN PLACE, so give them a writable
-\ buffer (not the transient s" area):
-\   here 5 s" hello" rot swap move  here 5 upper  here 5 type   \ HELLO
+\ buffer, not the transient s" area. cstr makes one: a named,
+\ durable, writable copy of any string - take the copy FIRST and
+\ the original survives whatever you do to it:
+\
+\   s" hello world" cstr msg
+\   msg cstr backup       \ a copy of the copy
+\   msg upper  msg type   \ HELLO WORLD
+\   backup type           \ hello world - untouched
 
 require io
 
 base @ hex
+
+\ --- copying ------------------------------------------------------
+\ Everything else in this module returns views or works in place;
+\ cstr is the one word that copies. It allots the string into the
+\ dictionary - u+7 bytes, permanent: create's 5-byte preamble, a
+\ length cell, the characters - which is the point: the copy
+\ outlives the transient s" area and every in-place edit of the
+\ original. Being create/does>, it defines a word, so use it at
+\ the top level, not inside a definition.
+: cstr ( addr u "name" -- )
+create dup , here swap dup allot move
+does> dup 2+ swap @ ;
 
 \ durexForth's resident set has 2dup / 2drop but not 2swap / 2over,
 \ which the two-string words below need, so define them here.

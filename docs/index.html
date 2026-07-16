@@ -2030,10 +2030,22 @@ No built-in words will modify this region.</p>
 <dd>
 <p>Lower-case one character.</p>
 </dd>
+<dt class="hdlist1">cstr <em>( addr u "name"&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Define <em>name</em> as a durable, writable copy of the string. Everything else in the module returns views into the same memory or edits it in place; <code>cstr</code> is the one word that copies — take the copy <strong>first</strong> and the original survives whatever you do afterwards. The copy is alloted into the dictionary (u+7 bytes, permanent), and since it defines a word, use it at the top level, not inside a definition.</p>
+</dd>
 </dl>
 </div>
+<div class="literalblock">
+<div class="content">
+<pre>s" hello world" cstr msg
+msg cstr backup        \ a copy of the copy
+msg upper  msg type    \ HELLO WORLD
+backup type            \ hello world - untouched</pre>
+</div>
+</div>
 <div class="paragraph">
-<p>Because <code>upper</code> and <code>lower</code> modify the bytes in place, give them a writable buffer, not the transient area that <code>s"</code> returns.</p>
+<p>Because <code>upper</code> and <code>lower</code> modify the bytes in place, give them a writable buffer, not the transient area that <code>s"</code> returns — a <code>cstr</code> copy, or <code>pad</code> for scratch work that nothing needs to outlive.</p>
 </div>
 </div>
 </div>

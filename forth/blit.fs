@@ -99,6 +99,24 @@ base @ hex
     loop
   loop drop ;
 
+\ --- sprite to sprite ------------------------------------------
+\ Combine one sprite into another of the same size, without the
+\ bitmap being involved at all - so no kernal banking, and no
+\ interrupts held off. Build a masked sprite once at startup
+\ (cpy-and a mask in, cpy-or the image on top) and then a single
+\ blit-blk per frame draws it over any background.
+
+: cpy ( src dst w h -- )   \ dst = dst op src, through blit-op
+  * 3 lshift               ( src dst n )
+  0 do
+    over i + c@   over i +   blit-op execute
+  loop 2drop ;
+
+: cpy-blk ( src dst w h -- ) ['] op-blk to blit-op cpy ;
+: cpy-or  ( src dst w h -- ) ['] op-or  to blit-op cpy ;
+: cpy-and ( src dst w h -- ) ['] op-and to blit-op cpy ;
+: cpy-xor ( src dst w h -- ) ['] op-xor to blit-op cpy ;
+
 hide bsrc
 hide bw
 hide bh

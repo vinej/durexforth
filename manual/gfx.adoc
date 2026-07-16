@@ -70,3 +70,23 @@ bg   2 2 #10 #5 blit-blk \ later: put it back
 NOTE: Blits are character aligned, as White Lightning's were. The bitmap is stored as 8-byte cells, so a cell-aligned blit is a byte copy; an arbitrary pixel _x_ would mean shifting every byte and merging it across a cell boundary — several times the work. The classic answer is to keep eight pre-shifted copies of the sprite and pick one, which is a job for whatever draws the sprite rather than for the blitter.
 
 NOTE: The bitmap lives at `$e000`, underneath the KERNAL. Writes fall through to the RAM, but reads would come back as KERNAL ROM — and `blit-or`, `blit-and`, `blit-xor` and `blit-get` all read. So every blit is wrapped in `kernal-out`/`kernal-in`, which means interrupts are off for its duration and nothing may call the KERNAL in between.
+
+=== Transforming Sprites
+
+The `xform` module (`include xform`) reshapes sprite data. It is cheaper to mirror the alien you already drew than to draw it facing the other way.
+
+Sprites are the `blit` shape — _w*h_ cells of 8 bytes — so the output feeds straight back into `blit-blk`, or into `sp-data` for a hardware sprite.
+
+((mir)) _( src dst w h -- )_ :: Mirror left-to-right. `dst` is the same _w*h_.
+((flip)) _( src dst w h -- )_ :: Flip top-to-bottom. `dst` is the same _w*h_.
+((spin)) _( src dst w h -- )_ :: Rotate 90° clockwise. Note `dst` comes out _h*w_ cells — a 1x2 sprite spins into a 2x1 — so size the buffer for that and blit it as `h w`.
+((xpandx)) _( src dst w h -- )_ :: Double the width. `dst` is _2w*h_ cells.
+((xpandy)) _( src dst w h -- )_ :: Double the height. `dst` is _w*2h_ cells.
+
+....
+include xform
+create ship-l #32 allot
+ship ship-l 2 2 mir      \ now blit whichever way it is facing
+....
+
+NOTE: These run every pixel through a read and a write, so a 2x2 sprite costs a few hundred thousand cycles. They are meant to run *once*, when your game loads: transform into a second buffer at startup, then blit that buffer every frame.

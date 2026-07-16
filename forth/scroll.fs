@@ -88,6 +88,77 @@ base @ hex
     then
   loop ;
 
+\ --- wrapping scrolls ------------------------------------------
+\ Same shift, but whatever falls off one edge comes back on the
+\ other, so the window keeps its contents forever. Good for a
+\ repeating background or a marquee; a scroller that draws new
+\ material wants the plain scroll-* above instead.
+
+0 value s-t             \ the character carried around
+0 value s-c             \ and its colour
+create s-row #40 allot  \ a whole row, for the vertical wraps
+create s-rowc #40 allot
+
+: wrap-left ( x y w h -- )
+  to s-h to s-w to s-y to s-x
+  s-h 0 do
+    s-y i + to s-r
+    s-x s-r scr-at c@ to s-t
+    s-x 1+ s-r scr-at  s-x s-r scr-at  s-w 1- move
+    s-t  s-x s-w + 1- s-r scr-at c!
+    col-scroll if
+      s-x s-r col-at c@ to s-c
+      s-x 1+ s-r col-at  s-x s-r col-at  s-w 1- move
+      s-c  s-x s-w + 1- s-r col-at c!
+    then
+  loop ;
+
+: wrap-right ( x y w h -- )
+  to s-h to s-w to s-y to s-x
+  s-h 0 do
+    s-y i + to s-r
+    s-x s-w + 1- s-r scr-at c@ to s-t
+    s-x s-r scr-at  s-x 1+ s-r scr-at  s-w 1- move
+    s-t  s-x s-r scr-at c!
+    col-scroll if
+      s-x s-w + 1- s-r col-at c@ to s-c
+      s-x s-r col-at  s-x 1+ s-r col-at  s-w 1- move
+      s-c  s-x s-r col-at c!
+    then
+  loop ;
+
+: wrap-up ( x y w h -- )
+  to s-h to s-w to s-y to s-x
+  s-x s-y scr-at  s-row  s-w move
+  col-scroll if s-x s-y col-at  s-rowc  s-w move then
+  s-h 1- 0 do
+    s-y i + to s-r
+    s-x s-r 1+ scr-at  s-x s-r scr-at  s-w move
+    col-scroll if
+      s-x s-r 1+ col-at  s-x s-r col-at  s-w move
+    then
+  loop
+  s-row  s-x s-y s-h + 1- scr-at  s-w move
+  col-scroll if s-rowc  s-x s-y s-h + 1- col-at  s-w move then ;
+
+: wrap-down ( x y w h -- )
+  to s-h to s-w to s-y to s-x
+  s-x s-y s-h + 1- scr-at  s-row  s-w move
+  col-scroll if s-x s-y s-h + 1- col-at  s-rowc  s-w move then
+  s-h 1- 0 do
+    s-y s-h + 2 - i - to s-r
+    s-x s-r scr-at  s-x s-r 1+ scr-at  s-w move
+    col-scroll if
+      s-x s-r col-at  s-x s-r 1+ col-at  s-w move
+    then
+  loop
+  s-row  s-x s-y scr-at  s-w move
+  col-scroll if s-rowc  s-x s-y col-at  s-w move then ;
+
+hide s-t
+hide s-c
+hide s-row
+hide s-rowc
 hide s-x
 hide s-y
 hide s-w

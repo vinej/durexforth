@@ -510,6 +510,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_turtle_graphics">Turtle Graphics</a></li>
 <li><a href="#_high_resolution_graphics">High-Resolution Graphics</a></li>
 <li><a href="#_software_sprites_blitter">Software Sprites (blitter)</a></li>
+<li><a href="#_transforming_sprites">Transforming Sprites</a></li>
 </ul>
 </li>
 <li><a href="#_sid">SID</a>
@@ -2745,6 +2746,58 @@ Blits are character aligned, as White Lightning&#8217;s were. The bitmap is stor
 </td>
 <td class="content">
 The bitmap lives at <code>$e000</code>, underneath the KERNAL. Writes fall through to the RAM, but reads would come back as KERNAL ROM — and <code>blit-or</code>, <code>blit-and</code>, <code>blit-xor</code> and <code>blit-get</code> all read. So every blit is wrapped in <code>kernal-out</code>/<code>kernal-in</code>, which means interrupts are off for its duration and nothing may call the KERNAL in between.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_transforming_sprites">Transforming Sprites</h3>
+<div class="paragraph">
+<p>The <code>xform</code> module (<code>include xform</code>) reshapes sprite data. It is cheaper to mirror the alien you already drew than to draw it facing the other way.</p>
+</div>
+<div class="paragraph">
+<p>Sprites are the <code>blit</code> shape — <em>w*h</em> cells of 8 bytes — so the output feeds straight back into <code>blit-blk</code>, or into <code>sp-data</code> for a hardware sprite.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">mir <em>( src dst w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Mirror left-to-right. <code>dst</code> is the same <em>w*h</em>.</p>
+</dd>
+<dt class="hdlist1">flip <em>( src dst w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Flip top-to-bottom. <code>dst</code> is the same <em>w*h</em>.</p>
+</dd>
+<dt class="hdlist1">spin <em>( src dst w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Rotate 90° clockwise. Note <code>dst</code> comes out <em>h*w</em> cells — a 1x2 sprite spins into a 2x1 — so size the buffer for that and blit it as <code>h w</code>.</p>
+</dd>
+<dt class="hdlist1">xpandx <em>( src dst w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Double the width. <code>dst</code> is <em>2w*h</em> cells.</p>
+</dd>
+<dt class="hdlist1">xpandy <em>( src dst w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Double the height. <code>dst</code> is <em>w*2h</em> cells.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include xform
+create ship-l #32 allot
+ship ship-l 2 2 mir      \ now blit whichever way it is facing</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+These run every pixel through a read and a write, so a 2x2 sprite costs a few hundred thousand cycles. They are meant to run <strong>once</strong>, when your game loads: transform into a second buffer at startup, then blit that buffer every frame.
 </td>
 </tr>
 </table>

@@ -49,10 +49,15 @@ XX..XXX.................
 ........................
 ........................
 
-\ keep the pointer inside the visible sprite range.
+\ Keep the pointer inside the visible sprite range.  Sprite X is a
+\ 9-bit coordinate (0..511); the visible screen is roughly x=24..343.
+\ The arrow's tip is the TOP-LEFT pixel of the sprite cell, so the
+\ tip position equals the sprite x/y.  These max values were tuned on
+\ real hardware (MiSTer C64 core) so the tip reaches the right edge
+\ and ymax=249 leaves 1px of the pointer on the last visible line.
 : setup-range ( -- )
-  #24  mouse-xmin !  #300 mouse-xmax !
-  #50  mouse-ymin !  #229 mouse-ymax ! ;
+  #24  mouse-xmin !  #343 mouse-xmax !
+  #50  mouse-ymin !  #249 mouse-ymax ! ;
 
 \ the per-frame tick: read the mouse, move the sprite, and
 \ tint it while the left button is held.  Pure register /

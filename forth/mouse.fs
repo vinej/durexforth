@@ -47,7 +47,7 @@ variable mouse-ymin  variable mouse-ymax
 
 \ --- port selection -------------------------------------
 \ The SID pot lines are muxed to a control port by CIA1
-\ $dc00 bits 6/7.  bit7=1 -> port 1, bit6=1 -> port 2.
+\ $dc00 bits 6/7.  bit6=1 ($40) -> port 1, bit7=1 ($80) -> port 2.
 \ We also remember which port register holds the buttons.
 variable mouse-btnreg      \ $dc01 (port 1) or $dc00 (port 2)
 

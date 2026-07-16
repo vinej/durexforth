@@ -13,6 +13,13 @@ base @ hex
 : filter! d417 c! ;
 : volume! d418 c! ;
 
+( The only two registers the sid reads back: voice 3's
+  oscillator and envelope. Set voice 3 to noise and osc3@
+  is a free random byte; leave it silent with volume 0 or
+  mute it and it costs you nothing musically. )
+: osc3@ ( -- b ) d41b c@ ;
+: env3@ ( -- b ) d41c c@ ;
+
 ( write adsr )
 : srad! ( SR AD -- ) d405 voice + ! ;
 

@@ -12,3 +12,12 @@ The `sid` module contains low-level words for controlling the SID chip. To load 
 ((cutoff!)) _( n -- )_ :: Write 16-bit filter cutoff value.
 ((filter!)) _( n -- )_ :: Write 8-bit filter value.
 ((volume!)) _( n -- )_ :: Write 8-bit volume.
+
+=== Reading the SID
+
+Almost every SID register is write-only. The two exceptions both belong to voice 3, and both are read-only.
+
+((osc3@)) _( -- b )_ :: Voice 3's oscillator output.
+((env3@)) _( -- b )_ :: Voice 3's envelope output.
+
+`osc3@` is the classic C64 random number source: set voice 3 to a noise waveform and every read gives you a fresh byte. Voice 3 can be muted (bit 7 of `$d418`) so it costs nothing musically, though then you only have two voices for music.

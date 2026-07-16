@@ -126,6 +126,36 @@ The `sprite` module adds words for multicolor sprites, priority, data pointers, 
 ((sp-sp-coll)) _( -- b )_ :: Read the sprite-sprite collision register (`$d01e`). Cleared on read, so read once per frame.
 ((sp-bg-coll)) _( -- b )_ :: Read the sprite-background collision register (`$d01f`).
 ((sp-hit?)) _( b n -- f )_ :: Test whether sprite _n_ collided, given a byte read from `sp-sp-coll`/`sp-bg-coll`.
+((sp-x@)) ((sp-y@)) _( n -- x )_ / _( n -- y )_ :: Read sprite _n_'s position back. `sp-x@` reassembles the 9-bit x from `$d000+2n` and the overflow bit in `$d010`.
+
+The collision registers only tell you _which_ sprite hit something, so reading the position back is how you act on it:
+
+....
+sp-sp-coll  3 sp-hit? if
+  3 sp-x@  3 sp-y@  explode
+then
+....
+
+=== Keyboard
+
+The `keyb` module (`include keyb`) reads the keyboard matrix directly.
+
+`key` and `key?` go through the KERNAL, which is the wrong shape for a game: they are buffered, they deliver one keypress at a time, and they repeat. A game needs to know what is held down *right now*, and needs several keys at once — "left and fire" is one state, not two events, and no amount of `key?` will tell you that.
+
+((kb?)) _( n -- f )_ :: True if key _n_ is held down at this instant.
+((kb-key)) _( row col -- n )_ :: Build a key number from a matrix position.
+
+The matrix is 8 rows by 8 columns, so a key is just `row*8 + col` — 0 to 63. Named constants cover the keys games actually use: `k-space`, `k-ctrl`, `k-lshift`, `k-rshift`, `k-return`, `k-stop`, `k-a`, `k-s`, `k-d`, `k-w`, `k-z`, `k-x`, `k-c`, `k-q`, `k-crsr-dn`, `k-crsr-rt`, `k-f1`, `k-f3`, `k-f5`, `k-f7`. For anything else use `kb-key` with a matrix table from any C64 reference.
+
+....
+include keyb
+: fly
+  k-z kb? if  -1 move-left  then
+  k-x kb? if   1 move-right then
+  k-space kb? if fire then ;   \ all three at once, if you like
+....
+
+NOTE: `kb?` scans with interrupts held off for a few cycles, because the KERNAL scans the same hardware sixty times a second and would otherwise move the row out from under the read. It uses `php`/`plp` rather than `sei`/`cli`, so it is safe to call from inside an `irq!` callback. It also leaves `$dc00` at `$ff` on the way out — with a row still selected, `joy2` reads the same port and would report phantom directions.
 
 === Characters and Tiles
 

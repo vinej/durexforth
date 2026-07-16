@@ -19,6 +19,17 @@ else 7s- $d010 clrbit then ;
 : sp-xy! ( x y n -- )
 tuck sp-y! sp-x! ;
 
+( read back a sprite's position. x is 9 bits: the low 8
+  live in $d000+2n, bit 8 in $d010. Needed to act on a
+  collision, where all you have is the sprite number:
+    sp-sp-coll 3 sp-hit? if 3 sp-x@ 3 sp-y@ boom then )
+: sp-x@ ( n -- x )
+dup 2* $d000 + c@
+swap 7s- 80lsr $d010 c@ and
+if $100 + then ;
+
+: sp-y@ ( n -- y ) 2* $d001 + c@ ;
+
 ( expand width/height )
 : sp-1w ( n -- ) 7s- $d01d clrbit ;
 : sp-2w ( n -- ) 7s- $d01d setbit ;

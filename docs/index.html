@@ -515,6 +515,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel2">
 <li><a href="#_voice_control">Voice Control</a></li>
 <li><a href="#_sid_control">SID Control</a></li>
+<li><a href="#_reading_the_sid">Reading the SID</a></li>
 </ul>
 </li>
 <li><a href="#_music_2">Music</a>
@@ -530,6 +531,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_joystick">Joystick</a></li>
 <li><a href="#_mouse">Mouse</a></li>
 <li><a href="#_sprite_helpers">Sprite Helpers</a></li>
+<li><a href="#_keyboard">Keyboard</a></li>
 <li><a href="#_characters_and_tiles">Characters and Tiles</a></li>
 <li><a href="#_scrolling">Scrolling</a></li>
 <li><a href="#_vic_ii_register_constants">VIC-II Register Constants</a></li>
@@ -2722,6 +2724,27 @@ E.g. <code>10 8 parse-name hallo text</code> draws the message <code>hallo</code
 </dl>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_reading_the_sid">Reading the SID</h3>
+<div class="paragraph">
+<p>Almost every SID register is write-only. The two exceptions both belong to voice 3, and both are read-only.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">osc3@ <em>(&#8201;&#8212;&#8201;b )</em> </dt>
+<dd>
+<p>Voice 3&#8217;s oscillator output.</p>
+</dd>
+<dt class="hdlist1">env3@ <em>(&#8201;&#8212;&#8201;b )</em> </dt>
+<dd>
+<p>Voice 3&#8217;s envelope output.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p><code>osc3@</code> is the classic C64 random number source: set voice 3 to a noise waveform and every read gives you a fresh byte. Voice 3 can be muted (bit 7 of <code>$d418</code>) so it costs nothing musically, though then you only have two voices for music.</p>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -3049,7 +3072,66 @@ mouse-init
 <dd>
 <p>Test whether sprite <em>n</em> collided, given a byte read from <code>sp-sp-coll</code>/<code>sp-bg-coll</code>.</p>
 </dd>
+<dt class="hdlist1">sp-x@ sp-y@ <em>( n&#8201;&#8212;&#8201;x )</em> / <em>( n&#8201;&#8212;&#8201;y )</em> </dt>
+<dd>
+<p>Read sprite <em>n</em>'s position back. <code>sp-x@</code> reassembles the 9-bit x from <code>$d000+2n</code> and the overflow bit in <code>$d010</code>.</p>
+</dd>
 </dl>
+</div>
+<div class="paragraph">
+<p>The collision registers only tell you <em>which</em> sprite hit something, so reading the position back is how you act on it:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>sp-sp-coll  3 sp-hit? if
+  3 sp-x@  3 sp-y@  explode
+then</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_keyboard">Keyboard</h3>
+<div class="paragraph">
+<p>The <code>keyb</code> module (<code>include keyb</code>) reads the keyboard matrix directly.</p>
+</div>
+<div class="paragraph">
+<p><code>key</code> and <code>key?</code> go through the KERNAL, which is the wrong shape for a game: they are buffered, they deliver one keypress at a time, and they repeat. A game needs to know what is held down <strong>right now</strong>, and needs several keys at once — "left and fire" is one state, not two events, and no amount of <code>key?</code> will tell you that.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">kb? <em>( n&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>True if key <em>n</em> is held down at this instant.</p>
+</dd>
+<dt class="hdlist1">kb-key <em>( row col&#8201;&#8212;&#8201;n )</em> </dt>
+<dd>
+<p>Build a key number from a matrix position.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>The matrix is 8 rows by 8 columns, so a key is just <code>row*8 + col</code> — 0 to 63. Named constants cover the keys games actually use: <code>k-space</code>, <code>k-ctrl</code>, <code>k-lshift</code>, <code>k-rshift</code>, <code>k-return</code>, <code>k-stop</code>, <code>k-a</code>, <code>k-s</code>, <code>k-d</code>, <code>k-w</code>, <code>k-z</code>, <code>k-x</code>, <code>k-c</code>, <code>k-q</code>, <code>k-crsr-dn</code>, <code>k-crsr-rt</code>, <code>k-f1</code>, <code>k-f3</code>, <code>k-f5</code>, <code>k-f7</code>. For anything else use <code>kb-key</code> with a matrix table from any C64 reference.</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include keyb
+: fly
+  k-z kb? if  -1 move-left  then
+  k-x kb? if   1 move-right then
+  k-space kb? if fire then ;   \ all three at once, if you like</pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<code>kb?</code> scans with interrupts held off for a few cycles, because the KERNAL scans the same hardware sixty times a second and would otherwise move the row out from under the read. It uses <code>php</code>/<code>plp</code> rather than <code>sei</code>/<code>cli</code>, so it is safe to call from inside an <code>irq!</code> callback. It also leaves <code>$dc00</code> at <code>$ff</code> on the way out — with a row still selected, <code>joy2</code> reads the same port and would report phantom directions.
+</td>
+</tr>
+</table>
 </div>
 </div>
 <div class="sect2">

@@ -182,6 +182,45 @@ brick 2 2 #10 #5 tile!      \ stamp it at column 10, row 5
 2 2 2 #10 #5 tile-col!      \ and colour it red
 ....
 
+=== Scrolling
+
+The `scroll` module (`include scroll`) is the other half of tile-based games: `tile!` builds a world, scrolling moves the camera over it.
+
+Scrolling a C64 screen is two jobs stitched together. The VIC will shift the whole display 0-7 pixels for free — that is the smooth part, and it costs one register write. But 7 pixels is all it can do, so every 8th pixel you move the characters themselves one cell, reset the fine offset back where it started, and draw the newly exposed edge. Done right the two are invisible and the picture simply keeps moving.
+
+*Fine (hardware) scroll.*
+
+((xscroll@)) ((xscroll!)) _( -- 0..7 )_ / _( 0..7 -- )_ :: Get/set the horizontal fine offset (`$d016` bits 0-2).
+((yscroll@)) ((yscroll!)) _( -- 0..7 )_ / _( 0..7 -- )_ :: Get/set the vertical fine offset (`$d011` bits 0-2). Note the power-on value is 3, not 0.
+((col38)) ((col40)) _( -- )_ :: Narrow the display to 38 columns, or back to 40.
+((row24)) ((row25)) _( -- )_ :: Narrow the display to 24 rows, or back to 25.
+
+TIP: A side-scroller wants `col38`. Without it the column being scrolled in is drawn half-finished at the screen edge, and it flickers. Narrowing makes the VIC cover that edge with border. `row24` does the same for a vertical scroller.
+
+*Character scroll.* These shift a _w_ by _h_ window of the screen one whole cell. The vacated edge is left as it was rather than cleared — the caller draws the new column or row into it, which is the entire point of scrolling.
+
+((scroll-left)) ((scroll-right)) _( x y w h -- )_ :: Shift the window one character sideways.
+((scroll-up)) ((scroll-down)) _( x y w h -- )_ :: Shift the window one character vertically.
+((col-scroll)) _( -- f )_ :: Whether colour memory is shifted too. Default is on.
+
+Colour is shifted along with the characters, because colour memory does *not* move with the screen — it is wired at `$d800` whatever `screen!` says. That doubles the work, so a game with a uniform colour scheme can turn it off:
+
+....
+0 to col-scroll
+....
+
+Putting both halves together — this is the whole of a side-scroller's per-frame work:
+
+....
+include scroll
+0 value fine
+: bump fine 1- to fine ;
+: wrapf 7 to fine  0 #15 #40 1 scroll-left ;
+: step bump  fine 0< if wrapf then  fine xscroll! ;
+....
+
+`step` moves row 15 one pixel left. Every eighth call `fine` runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it. Call `step` from `irq!` and the row scrolls at 60 pixels a second; add a word that draws column 39 inside `wrapf` and it scrolls forever.
+
 === VIC-II Register Constants
 
 The `vic` module (`include vic`) defines readable names for the VIC-II registers — `border`, `bgcol`, `vic-ctrl1`, `vic-raster`, `sp-enable`, `sp-sp-hit`, and so on — so game code reads clearly instead of using bare addresses. See the module source for the full list.

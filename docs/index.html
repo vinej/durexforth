@@ -531,6 +531,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_mouse">Mouse</a></li>
 <li><a href="#_sprite_helpers">Sprite Helpers</a></li>
 <li><a href="#_characters_and_tiles">Characters and Tiles</a></li>
+<li><a href="#_scrolling">Scrolling</a></li>
 <li><a href="#_vic_ii_register_constants">VIC-II Register Constants</a></li>
 <li><a href="#_example_a_bouncing_ball">Example: a bouncing ball</a></li>
 <li><a href="#_example_raster_colour_bars">Example: raster colour bars</a></li>
@@ -3183,6 +3184,92 @@ $400 $4000 #1000 move       \ carry the current text over to the new screen
 brick 2 2 #10 #5 tile!      \ stamp it at column 10, row 5
 2 2 2 #10 #5 tile-col!      \ and colour it red</pre>
 </div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_scrolling">Scrolling</h3>
+<div class="paragraph">
+<p>The <code>scroll</code> module (<code>include scroll</code>) is the other half of tile-based games: <code>tile!</code> builds a world, scrolling moves the camera over it.</p>
+</div>
+<div class="paragraph">
+<p>Scrolling a C64 screen is two jobs stitched together. The VIC will shift the whole display 0-7 pixels for free — that is the smooth part, and it costs one register write. But 7 pixels is all it can do, so every 8th pixel you move the characters themselves one cell, reset the fine offset back where it started, and draw the newly exposed edge. Done right the two are invisible and the picture simply keeps moving.</p>
+</div>
+<div class="paragraph">
+<p><strong>Fine (hardware) scroll.</strong></p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">xscroll@ xscroll! <em>(&#8201;&#8212;&#8201;0..7 )</em> / <em>( 0..7&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Get/set the horizontal fine offset (<code>$d016</code> bits 0-2).</p>
+</dd>
+<dt class="hdlist1">yscroll@ yscroll! <em>(&#8201;&#8212;&#8201;0..7 )</em> / <em>( 0..7&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Get/set the vertical fine offset (<code>$d011</code> bits 0-2). Note the power-on value is 3, not 0.</p>
+</dd>
+<dt class="hdlist1">col38 col40 <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Narrow the display to 38 columns, or back to 40.</p>
+</dd>
+<dt class="hdlist1">row24 row25 <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Narrow the display to 24 rows, or back to 25.</p>
+</dd>
+</dl>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Tip</div>
+</td>
+<td class="content">
+A side-scroller wants <code>col38</code>. Without it the column being scrolled in is drawn half-finished at the screen edge, and it flickers. Narrowing makes the VIC cover that edge with border. <code>row24</code> does the same for a vertical scroller.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Character scroll.</strong> These shift a <em>w</em> by <em>h</em> window of the screen one whole cell. The vacated edge is left as it was rather than cleared — the caller draws the new column or row into it, which is the entire point of scrolling.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">scroll-left scroll-right <em>( x y w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Shift the window one character sideways.</p>
+</dd>
+<dt class="hdlist1">scroll-up scroll-down <em>( x y w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Shift the window one character vertically.</p>
+</dd>
+<dt class="hdlist1">col-scroll <em>(&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>Whether colour memory is shifted too. Default is on.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>Colour is shifted along with the characters, because colour memory does <strong>not</strong> move with the screen — it is wired at <code>$d800</code> whatever <code>screen!</code> says. That doubles the work, so a game with a uniform colour scheme can turn it off:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>0 to col-scroll</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Putting both halves together — this is the whole of a side-scroller&#8217;s per-frame work:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include scroll
+0 value fine
+: bump fine 1- to fine ;
+: wrapf 7 to fine  0 #15 #40 1 scroll-left ;
+: step bump  fine 0&lt; if wrapf then  fine xscroll! ;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>step</code> moves row 15 one pixel left. Every eighth call <code>fine</code> runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it. Call <code>step</code> from <code>irq!</code> and the row scrolls at 60 pixels a second; add a word that draws column 39 inside <code>wrapf</code> and it scrolls forever.</p>
 </div>
 </div>
 <div class="sect2">

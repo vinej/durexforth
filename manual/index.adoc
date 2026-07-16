@@ -31,6 +31,9 @@ include::mml.adoc[]
 == Games and Interrupts
 include::irq.adoc[]
 
+== EasyFlash Cartridge
+include::easyflash.adoc[]
+
 == Assembler
 include::asm.adoc[]
 

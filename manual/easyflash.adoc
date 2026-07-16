@@ -1,0 +1,47 @@
+durexForth can be built as an EasyFlash cartridge: `deploy/durexforth-ef.crt`. It boots straight to a durexForth prompt with the game-dev modules already resident, and it carries every module in flash, so `include` works with *no disk attached*. This is the build to use on a MiSTer or an EasyFlash 3.
+
+=== What is resident
+
+The cartridge boots with these modules already compiled in — no `include` needed:
+
+`vic`, `irq`, `joy`, `sprite`, `mouse`, `sid`, `mml`, `mmlirq`, `rnd`.
+
+That means `irq!`, `raster!`, `joy1`, sprite and SID words all work the moment you get a prompt. This is the whole point of the cartridge: the packed image is ~17K, which does not fit the 16K of a plain cartridge, so it is split over two EasyFlash banks.
+
+The editor `v` is *not* resident — it is large, and you do not need it in every game. `include v` loads it from flash in a moment. `timer` is not resident either, for a specific reason: it defines a word called `start`, which would shadow the kernel's own `start` and break the packing step. `include timer` after boot is perfectly fine and gives you the normal `start ... stop`.
+
+=== Including from flash
+
+Everything else — `v`, `dos`, `file`, `str`, `timer`, `see`, `gfx`, the demos — lives in the cartridge's flash, so `include` just works:
+
+....
+include v          \ the editor, straight from flash
+include fractals   \ pulls in turtle too, also from flash
+....
+
+There is no disk involved, and nothing to mount. If you *do* have a drive attached, it still works: names that are not in flash fall through to the real KERNAL, so `include mygame` loads from disk 8 as usual. Flash is searched first.
+
+The cartridge holds 42 modules in about 111K of its 1&nbsp;MB flash, leaving plenty spare.
+
+=== Memory
+
+The cartridge keeps a small driver resident in RAM to serve `include` from flash. It hooks the KERNAL's OPEN/CHKIN/CHRIN/CLOSE vectors, so anything that reads a file — `include`, the editor's `:e`, `dos` — transparently sees flash files.
+
+((romfs driver)) The driver occupies *$9d00-$9f27*, and on this build the dictionary therefore ends at *$9cff* instead of $9fff. You lose 768 bytes of dictionary space; everything else is unchanged. This is the only hole available: `$a000-$cbff` is the editor text buffer and `$cc00-$cfff` is hi-res colour, so a driver parked up there would be destroyed the first time you edited a file or went hi-res.
+
+If you are writing a program that stomps `$9d00-$9f27`, `include` will stop working (and probably crash). Everything below `$9cff` and `$a000` upward behaves exactly as the appendix memory map describes.
+
+=== Building the cartridge
+
+The cartridge is not built by `make`; the steps are documented at the top of `asm/efbuild.py`, which lays out the flash image. In outline: assemble the kernel, `petcat` the modules, boot a packing disk once so `base-ef.fs` packs itself, then:
+
+....
+acme --symbollist build/cart-ef.sym asm/cart-ef.asm
+python asm/efbuild.py
+cartconv -t easy -i deploy/durexforth-ef.bin \
+         -o deploy/durexforth-ef.crt -n "DUREXFORTH EF"
+....
+
+`forth/base-ef.fs` is the cartridge's `base` — it chooses the resident set. `asm/cart-ef.asm` is the boot stub and the flash filesystem driver.
+
+TIP: When testing the cartridge in VICE, pass `+easyflashcrtwrite`. VICE writes the emulated flash back over your `.crt` on exit by default, silently rewriting the file you just built.

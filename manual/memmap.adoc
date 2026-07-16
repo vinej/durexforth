@@ -9,7 +9,7 @@ $33c - $35a :: `find` buffer.
 $35b - $3d9 :: `pad` Scratch pad memory, Cassette Buffer, untouched by durexForth.
 $3da - $3fb :: `#>` buffer.
 $801 - here :: Forth Kernel followed by code and data space.
-latest - $9fff :: Dictionary. Grows downwards as needed.
+latest - $9fff :: Dictionary. Grows downwards as needed. On the EasyFlash cartridge the dictionary stops at $9cff instead, and $9d00 - $9f27 holds the driver that serves `include` from flash.
 $a000 - $cbff :: Editor text buffer.
 $cc00 - $cfff :: Hi-res graphics colors.
 $d000 - $dfff :: I/O area.

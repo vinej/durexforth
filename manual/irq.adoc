@@ -47,7 +47,7 @@ include vic
 raster-off                           \ stop it
 ....
 
-Because the split is locked to the beam, the boundary never crawls the way a jiffy-timed one would. Only one raster line is armed at a time; for multiple splits, re-latch `vic-raster` (`$d012`) from inside the callback.
+Because the split is locked to the beam, the boundary never crawls the way a jiffy-timed one would. Only one raster line is armed at a time; for multiple splits, re-latch `vic-raster` (`$d012`) from inside the callback — or use the <<Split Screen,`split`>> module, which does exactly that in assembly and saves you the trouble.
 
 *Fast callbacks in assembly.* For tight, beam-timed work — especially a multi-bar raster that re-arms `$d012` several times per frame — a colon-threaded callback is too slow and will out-run itself. Write the callback in assembly instead. durexForth is subroutine-threaded, so a `code` word is called with a plain `jsr` and returns with `rts`, exactly what the trampoline expects; it may freely use `a`/`x`/`y` (they are saved for you).
 
@@ -63,6 +63,49 @@ raster-off
 ....
 
 You can also keep the fast bytes inside a normal colon word by dropping into the assembler with `[ ... ]`; since compilation is subroutine-threaded, those opcodes run natively too. The `rasterbars` example uses a `code` callback to drive eight colour bars per frame — try rewriting it as colon-threaded and it storms the machine, which is the whole reason the callback is assembly.
+
+=== Split Screen
+
+One screen, several looks: a scrolling playfield above a status panel that holds still, a bitmap half over a text half, a different charset top and bottom. The VIC has one set of registers for the whole frame, so the only way to have two is to change them while the beam is between the bands — which is a raster interrupt, every frame, at every boundary.
+
+The `split` module (`include split`) does that. You describe a band by *setting the screen up the way you want it* and saying where it starts; `band+` photographs the VIC as it stands, so there is no table of magic numbers to get wrong.
+
+((bands-clear)) _( -- )_ :: Forget every band.
+((band+)) _( line -- )_ :: Add a band starting at raster _line_, taking the VIC's current registers as its look. Up to 8 bands.
+((bands-on)) _( -- )_ :: Start. ((bands-off)) _( -- )_ :: Stop and hand `$0314` back.
+((?bands)) _( -- f )_ :: True while bands are running.
+
+Each band carries `$d011`, `$d016`, `$d018`, `$d020` and `$d021` — the two scroll offsets, the graphics mode, the screen and charset pointers, and the two colours. That is everything that makes a band look like itself. A register a band does not care about simply keeps whatever the snapshot caught.
+
+....
+include split
+bands-clear
+6 bgcol c!  col38          \ the playfield: blue, 38 columns...
+#1 band+                   \ ...from the top of the frame
+0 bgcol c!  col40          \ the panel: black, 40 columns...
+#211 band+                 \ ...from character row 20 down
+bands-on
+....
+
+Raster line for character row _N_ is `51 + 8N`, the display window opening at line 51.
+
+*Changing a band while it runs.* This is the reason the module exists. `$d016` holds the fine x-scroll for the whole frame, so scrolling a playfield with it drags the score panel along too — unless a band puts it back. Set a band's registers with these and the change takes effect on the next frame:
+
+((band-xscroll!)) ((band-yscroll!)) _( 0..7 n -- )_ :: Fine scroll for band _n_ alone.
+((band-bg!)) ((band-border!)) _( col n -- )_ :: Background/border colour for band _n_.
+((band-charset!)) ((band-screen!)) _( addr n -- )_ :: Point band _n_ at its own charset or screen.
+
+....
+fine 0 band-xscroll!       \ band 0 glides; every other band is unmoved
+....
+
+*Where bands can go.* Lines 1 to 255, and at least two apart. Line 0 is out because a band is armed one line early, and adjacent lines are out because the raster compare cannot fire twice on the same line — the second band would arrive a frame late.
+
+NOTE: The handler is assembly, and has to be. A colon-threaded callback cannot do this job: by the time the interpreter threaded its way to the register writes the beam would be lines past the boundary, and it could not re-arm `$d012` for the next band inside the same frame. Everything happens between the interrupt and the band's first pixel — the mode registers (`$d011`, `$d018`) are written in the line above, because the VIC decides at cycle 14 whether a line is a badline and re-reads `$d018` during the fetch that follows, so a write after that point is a whole line late and the row comes out garbled. The colours are the opposite: written that early they would recolour the tail of the line above, so the handler waits for the band's own line and writes them in the left border.
+
+CAUTION: `split` takes over `$0314`, and chains to whatever it found there. It coexists with `irq!` and `sid-on` only in that order — install those *first*, `bands-on` *last*, and remove them in reverse. Otherwise `irq-off` restores a vector saved before the band handler existed and takes the bands with it.
+
+*Example.* `include splitdemo` then `splitdemo` — a grid and a sentence gliding left above a score panel that never moves a pixel, both on one screen sharing one scroll register. RUN/STOP quits.
 
 === Background Music
 
@@ -278,17 +321,70 @@ include scroll
 : step bump  fine 0< if wrapf then  fine xscroll! ;
 ....
 
-*Example: banners.* The `scrolldemo` module wraps both directions at once — a sentence cycling left to right across the middle of the screen, and a word running top to bottom down a column, both under the interrupt while the prompt stays live:
+`step` moves row 15 one pixel left. Every eighth call `fine` runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it.
+
+WARNING: Drive that from the foreground, one step a frame — *not* from `irq!`. `scroll-left` and friends use `do ... loop`, which is illegal in a callback: it `tsx`es onto the CPU stack and collides with the private data-stack window the callback runs on, and surfaces as a stack underflow in the foreground. Syncing to the jiffy clock (`$a2`) gives exactly one step per frame and costs nothing.
+
+*Example: banners.* The `scrolldemo` module has two, one per direction — run them one at a time, which is the point. With a single banner on screen the VIC's fine scroll is free to move it a pixel at a time and the result glides; two banners would have to share that one register and neither could have it.
 
 ....
 include scrolldemo
-scrollers        \ both banners start moving
-stop-scrollers   \ stop
+hbanner          \ a sentence gliding left to right
+vbanner          \ a word gliding top to bottom
 ....
 
-It wraps rather than scrolls, so the sentences cycle forever with nothing feeding them new characters. It moves a whole character at a time, because the fine scroll shifts the *entire* screen and so cannot move one banner without dragging the other along — for one smooth banner, use the fine+coarse loop below.
+RUN/STOP stops either. They wrap rather than scroll, so the sentence cycles forever with nothing feeding it new characters, and they hold the screen rather than returning to the prompt — `ok` and a blinking cursor would land right on top of the banner. `bspeed` is frames per pixel: 8 is about a character a second, which is a banner you can read.
 
-`step` moves row 15 one pixel left. Every eighth call `fine` runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it. Call `step` from `irq!` and the row scrolls at 60 pixels a second; add a word that draws column 39 inside `wrapf` and it scrolls forever.
+=== Eight-Way Scrolling
+
+`scroll.fs` shifts what is already on the screen, one edge at a time, and leaves you to draw the newly exposed strip. That is right for a banner and wrong for a world: a game does not scroll the screen, it moves a *camera* over a map, and the screen shows whatever the camera is looking at.
+
+The `scroll8` module (`include scroll8`) does that. Say where the camera is and the screen follows — which direction it moved, or whether it moved diagonally, stops being something anyone has to think about. A map is simply _w_ by _h_ bytes of character codes, so <<CharPad Pro,CharPad's>> exported map drops straight in.
+
+((map!)) _( addr w h -- )_ :: Use the _w_ by _h_ map at _addr_.
+((map-col!)) _( addr -- )_ :: Its colour map, same shape. Leave it unset for a one-colour world — see the cost below.
+((win!)) _( x y w h -- )_ :: The window on screen the camera draws into.
+((cam!)) _( x y -- )_ :: Put the camera at pixel _x,y_ in the map.
+((cam+)) _( dx dy -- )_ :: Move it, clamped so it cannot walk off the map.
+((cam-x)) ((cam-y)) _( -- n )_ :: Where it is, in pixels.
+((cam-start)) _( -- )_ :: Turn on `col38`/`row24` and draw the first frame.
+((cam-stop)) _( -- )_ :: Put the display back to 40x25.
+
+....
+include scroll8
+the-map #64 #48 map!
+the-col map-col!
+0 0 #40 #25 win!
+cam-start
+1 1 cam+                   \ one pixel right and down: diagonal is free
+cam-stop
+....
+
+*Why the arithmetic looks odd.* The VIC can shift the display *right* by 0–7 pixels and *down* by 0–7, and that is all — there is no shift left and no shift up. So to move the world left by one pixel you step the character window one cell on (8 pixels left) and shift 7 back to the right. Net: one pixel. Both axes are the same rule around a different neutral — x rests at 0, y at 3, because `$d011`'s rest value is `$1b`:
+
+....
+cell   = (cam + 7 - neutral) >> 3
+scroll = (neutral - cam) & 7
+....
+
+`cam-start` turns on `col38` and `row24`, which is why the screen goes a character narrower: when the offset is mid-cell the strip coming in at the edge is only part drawn, and narrowing makes the VIC paint border over exactly that strip.
+
+*What it costs.* The window is redrawn from the map only when the camera crosses a cell boundary, so 7 frames in 8 are one register write and free. The 8th copies `win-h` rows, twice over if the map has colour. Measured on the cartridge:
+
+[cols="1,1,1"]
+|===
+|window |per redraw |PAL frames
+
+|40x25 with colour |43 ms |~2
+|40x25 no colour |19 ms |~1
+|40x16 no colour |11 ms |~0.5
+|===
+
+So the colour map is not a detail — it is *half the cost*, and dropping it is the single biggest lever you have. At 40x25 in colour the redraw overruns its frame and the scroll pauses for two every eighth pixel; in one colour it just fits; a shorter window fits with room to spare. Scrolling a pixel every *other* frame makes even the worst case read as smooth, because the stall is a smaller share of the time between steps.
+
+NOTE: `cam!` redraws with `do ... loop`, so like the rest of `scroll`, drive it from the foreground rather than a callback.
+
+*Example.* `include scroll8demo` then `scroll8demo` — a camera over a 64x48 map, moving a pixel a frame in whatever direction you push the joystick in port 2, diagonals included. Each 8x8 block is labelled with its own column and row digits, so you can read straight off the screen whether the camera is where it claims; hold a diagonal into a corner and it clamps cleanly instead of scrolling off the end of the map. RUN/STOP quits.
 
 === VIC-II Register Constants
 

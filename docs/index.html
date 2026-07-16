@@ -530,6 +530,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel2">
 <li><a href="#_interrupts">Interrupts</a></li>
 <li><a href="#_raster_interrupts">Raster Interrupts</a></li>
+<li><a href="#_split_screen">Split Screen</a></li>
 <li><a href="#_background_music">Background Music</a></li>
 <li><a href="#_joystick">Joystick</a></li>
 <li><a href="#_mouse">Mouse</a></li>
@@ -537,6 +538,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_keyboard">Keyboard</a></li>
 <li><a href="#_characters_and_tiles">Characters and Tiles</a></li>
 <li><a href="#_scrolling">Scrolling</a></li>
+<li><a href="#_eight_way_scrolling">Eight-Way Scrolling</a></li>
 <li><a href="#_vic_ii_register_constants">VIC-II Register Constants</a></li>
 <li><a href="#_example_a_bouncing_ball">Example: a bouncing ball</a></li>
 <li><a href="#_example_raster_colour_bars">Example: raster colour bars</a></li>
@@ -2179,36 +2181,39 @@ If the definition is immediate, also return 1, otherwise also return -1.</p>
 <dd>
 <p>Like included, except that load is skipped if the file is already loaded.</p>
 </dd>
-<dt class="hdlist1">loadb <em>( filenameptr filenamelen dst&#8201;&#8212;&#8201;endaddr )</em> </dt>
-<dd>
-<p>Load file to <em>dst</em>.
-Returns the address after last written byte, or 0 on failure.</p>
-</dd>
-<dt class="hdlist1">saveb <em>( start end+1 filenameptr filenamelength&#8201;&#8212;&#8201;)</em> </dt>
-<dd>
-<p>Save file. <em>Start</em> = start address of memory area. <em>End+1</em> = end address of memory area plus 1.</p>
-</dd>
-<dt class="hdlist1">device <em>( device#&#8201;&#8212;&#8201;)</em> </dt>
-<dd>
-<p>Switch the current device.</p>
-</dd>
-<dt class="hdlist1">save-forth <em>( "filename"&#8201;&#8212;&#8201;)</em> </dt>
-<dd>
-<p>Save the forth to the given filename.</p>
-</dd>
-<dt class="hdlist1">ls </dt>
-<dd>
-<p>Load and print disk directory with optional drive # and wildcards. Example: <code>ls $1:*=p</code> Load directory for drive 1, only prg files.</p>
-</dd>
-<dt class="hdlist1">rdir <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
-<dd>
-<p>Display disk directory previously loaded to addr.</p>
-</dd>
-<dt class="hdlist1">rderr <em>(&#8201;&#8212;&#8201;)</em> </dt>
-<dd>
-<p>Read and print error channel of the current device.</p>
-</dd>
 </dl>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+<strong>Put nothing after a <code>require</code> on its line — not even a comment.</strong> An include reads its file&#8217;s lines into the 88-byte input buffer at <code>$0200</code>, and when it nests it must first step that buffer past whatever of the outer line has not been read yet. A bare <code>require</code> has been read to the end by the time it runs, so it costs nothing and the nested file gets the whole buffer. Add a trailing <code>\ comment</code> and the line is <strong>not</strong> finished, so the buffer steps forward by its full width — and two or three levels of that walks off the end of <code>$0258</code> into the Kernal&#8217;s open-file tables, whereupon the include quietly stops interpreting, or hangs. It fails silently: the words simply are not there afterwards. Keep source lines short for the same reason — a line wider than the buffer is truncated mid-word.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+Nesting from <strong>disk</strong> is also capped by the drive: a 1541 has three buffers free, so at most three files can be open at once. A four-deep chain answers <code>70, no channel</code>. Modules that are resident, or served from an EasyFlash cartridge&#8217;s ROM filesystem, do not consume a drive channel and so do not count.
+loadb <em>( filenameptr filenamelen dst&#8201;&#8212;&#8201;endaddr )</em> :: Load file to <em>dst</em>.
+Returns the address after last written byte, or 0 on failure.
+saveb <em>( start end+1 filenameptr filenamelength&#8201;&#8212;&#8201;)</em> :: Save file. <em>Start</em> = start address of memory area. <em>End+1</em> = end address of memory area plus 1.
+device <em>( device#&#8201;&#8212;&#8201;)</em> :: Switch the current device.
+save-forth <em>( "filename"&#8201;&#8212;&#8201;)</em> :: Save the forth to the given filename.
+ls :: Load and print disk directory with optional drive # and wildcards. Example: <code>ls $1:*=p</code> Load directory for drive 1, only prg files.
+rdir <em>( addr&#8201;&#8212;&#8201;)</em> :: Display disk directory previously loaded to addr.
+rderr <em>(&#8201;&#8212;&#8201;)</em> :: Read and print error channel of the current device.
+</td>
+</tr>
+</table>
 </div>
 <div class="sect3">
 <h4 id="_dos_commands">DOS Commands</h4>
@@ -3217,7 +3222,7 @@ raster-off                           \ stop it</pre>
 </div>
 </div>
 <div class="paragraph">
-<p>Because the split is locked to the beam, the boundary never crawls the way a jiffy-timed one would. Only one raster line is armed at a time; for multiple splits, re-latch <code>vic-raster</code> (<code>$d012</code>) from inside the callback.</p>
+<p>Because the split is locked to the beam, the boundary never crawls the way a jiffy-timed one would. Only one raster line is armed at a time; for multiple splits, re-latch <code>vic-raster</code> (<code>$d012</code>) from inside the callback — or use the <a href="#_split_screen"><code>split</code></a> module, which does exactly that in assembly and saves you the trouble.</p>
 </div>
 <div class="paragraph">
 <p><strong>Fast callbacks in assembly.</strong> For tight, beam-timed work — especially a multi-bar raster that re-arms <code>$d012</code> several times per frame — a colon-threaded callback is too slow and will out-run itself. Write the callback in assembly instead. durexForth is subroutine-threaded, so a <code>code</code> word is called with a plain <code>jsr</code> and returns with <code>rts</code>, exactly what the trampoline expects; it may freely use <code>a</code>/<code>x</code>/<code>y</code> (they are saved for you).</p>
@@ -3236,6 +3241,106 @@ raster-off</pre>
 </div>
 <div class="paragraph">
 <p>You can also keep the fast bytes inside a normal colon word by dropping into the assembler with <code>[ &#8230;&#8203; ]</code>; since compilation is subroutine-threaded, those opcodes run natively too. The <code>rasterbars</code> example uses a <code>code</code> callback to drive eight colour bars per frame — try rewriting it as colon-threaded and it storms the machine, which is the whole reason the callback is assembly.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_split_screen">Split Screen</h3>
+<div class="paragraph">
+<p>One screen, several looks: a scrolling playfield above a status panel that holds still, a bitmap half over a text half, a different charset top and bottom. The VIC has one set of registers for the whole frame, so the only way to have two is to change them while the beam is between the bands — which is a raster interrupt, every frame, at every boundary.</p>
+</div>
+<div class="paragraph">
+<p>The <code>split</code> module (<code>include split</code>) does that. You describe a band by <strong>setting the screen up the way you want it</strong> and saying where it starts; <code>band+</code> photographs the VIC as it stands, so there is no table of magic numbers to get wrong.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">bands-clear <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Forget every band.</p>
+</dd>
+<dt class="hdlist1">band+ <em>( line&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Add a band starting at raster <em>line</em>, taking the VIC&#8217;s current registers as its look. Up to 8 bands.</p>
+</dd>
+<dt class="hdlist1">bands-on <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Start. bands-off <em>(&#8201;&#8212;&#8201;)</em> :: Stop and hand <code>$0314</code> back.</p>
+</dd>
+<dt class="hdlist1">?bands <em>(&#8201;&#8212;&#8201;f )</em> </dt>
+<dd>
+<p>True while bands are running.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>Each band carries <code>$d011</code>, <code>$d016</code>, <code>$d018</code>, <code>$d020</code> and <code>$d021</code> — the two scroll offsets, the graphics mode, the screen and charset pointers, and the two colours. That is everything that makes a band look like itself. A register a band does not care about simply keeps whatever the snapshot caught.</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include split
+bands-clear
+6 bgcol c!  col38          \ the playfield: blue, 38 columns...
+#1 band+                   \ ...from the top of the frame
+0 bgcol c!  col40          \ the panel: black, 40 columns...
+#211 band+                 \ ...from character row 20 down
+bands-on</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Raster line for character row <em>N</em> is <code>51 + 8N</code>, the display window opening at line 51.</p>
+</div>
+<div class="paragraph">
+<p><strong>Changing a band while it runs.</strong> This is the reason the module exists. <code>$d016</code> holds the fine x-scroll for the whole frame, so scrolling a playfield with it drags the score panel along too — unless a band puts it back. Set a band&#8217;s registers with these and the change takes effect on the next frame:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">band-xscroll! band-yscroll! <em>( 0..7 n&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Fine scroll for band <em>n</em> alone.</p>
+</dd>
+<dt class="hdlist1">band-bg! band-border! <em>( col n&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Background/border colour for band <em>n</em>.</p>
+</dd>
+<dt class="hdlist1">band-charset! band-screen! <em>( addr n&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Point band <em>n</em> at its own charset or screen.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>fine 0 band-xscroll!       \ band 0 glides; every other band is unmoved</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Where bands can go.</strong> Lines 1 to 255, and at least two apart. Line 0 is out because a band is armed one line early, and adjacent lines are out because the raster compare cannot fire twice on the same line — the second band would arrive a frame late.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+The handler is assembly, and has to be. A colon-threaded callback cannot do this job: by the time the interpreter threaded its way to the register writes the beam would be lines past the boundary, and it could not re-arm <code>$d012</code> for the next band inside the same frame. Everything happens between the interrupt and the band&#8217;s first pixel — the mode registers (<code>$d011</code>, <code>$d018</code>) are written in the line above, because the VIC decides at cycle 14 whether a line is a badline and re-reads <code>$d018</code> during the fetch that follows, so a write after that point is a whole line late and the row comes out garbled. The colours are the opposite: written that early they would recolour the tail of the line above, so the handler waits for the band&#8217;s own line and writes them in the left border.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Caution</div>
+</td>
+<td class="content">
+<code>split</code> takes over <code>$0314</code>, and chains to whatever it found there. It coexists with <code>irq!</code> and <code>sid-on</code> only in that order — install those <strong>first</strong>, <code>bands-on</code> <strong>last</strong>, and remove them in reverse. Otherwise <code>irq-off</code> restores a vector saved before the band handler existed and takes the bands with it.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Example.</strong> <code>include splitdemo</code> then <code>splitdemo</code> — a grid and a sentence gliding left above a score panel that never moves a pixel, both on one screen sharing one scroll register. RUN/STOP quits.</p>
 </div>
 </div>
 <div class="sect2">
@@ -3737,20 +3842,152 @@ A side-scroller wants <code>col38</code>. Without it the column being scrolled i
 </div>
 </div>
 <div class="paragraph">
-<p><strong>Example: banners.</strong> The <code>scrolldemo</code> module wraps both directions at once — a sentence cycling left to right across the middle of the screen, and a word running top to bottom down a column, both under the interrupt while the prompt stays live:</p>
+<p><code>step</code> moves row 15 one pixel left. Every eighth call <code>fine</code> runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Warning</div>
+</td>
+<td class="content">
+Drive that from the foreground, one step a frame — <strong>not</strong> from <code>irq!</code>. <code>scroll-left</code> and friends use <code>do &#8230;&#8203; loop</code>, which is illegal in a callback: it <code>tsx`es onto the CPU stack and collides with the private data-stack window the callback runs on, and surfaces as a stack underflow in the foreground. Syncing to the jiffy clock (</code>$a2`) gives exactly one step per frame and costs nothing.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Example: banners.</strong> The <code>scrolldemo</code> module has two, one per direction — run them one at a time, which is the point. With a single banner on screen the VIC&#8217;s fine scroll is free to move it a pixel at a time and the result glides; two banners would have to share that one register and neither could have it.</p>
 </div>
 <div class="literalblock">
 <div class="content">
 <pre>include scrolldemo
-scrollers        \ both banners start moving
-stop-scrollers   \ stop</pre>
+hbanner          \ a sentence gliding left to right
+vbanner          \ a word gliding top to bottom</pre>
 </div>
 </div>
 <div class="paragraph">
-<p>It wraps rather than scrolls, so the sentences cycle forever with nothing feeding them new characters. It moves a whole character at a time, because the fine scroll shifts the <strong>entire</strong> screen and so cannot move one banner without dragging the other along — for one smooth banner, use the fine+coarse loop below.</p>
+<p>RUN/STOP stops either. They wrap rather than scroll, so the sentence cycles forever with nothing feeding it new characters, and they hold the screen rather than returning to the prompt — <code>ok</code> and a blinking cursor would land right on top of the banner. <code>bspeed</code> is frames per pixel: 8 is about a character a second, which is a banner you can read.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_eight_way_scrolling">Eight-Way Scrolling</h3>
+<div class="paragraph">
+<p><code>scroll.fs</code> shifts what is already on the screen, one edge at a time, and leaves you to draw the newly exposed strip. That is right for a banner and wrong for a world: a game does not scroll the screen, it moves a <strong>camera</strong> over a map, and the screen shows whatever the camera is looking at.</p>
 </div>
 <div class="paragraph">
-<p><code>step</code> moves row 15 one pixel left. Every eighth call <code>fine</code> runs past zero, so the row is shifted one whole character and the fine offset snaps back to 7 — leaving the picture exactly where the eye expects it. Call <code>step</code> from <code>irq!</code> and the row scrolls at 60 pixels a second; add a word that draws column 39 inside <code>wrapf</code> and it scrolls forever.</p>
+<p>The <code>scroll8</code> module (<code>include scroll8</code>) does that. Say where the camera is and the screen follows — which direction it moved, or whether it moved diagonally, stops being something anyone has to think about. A map is simply <em>w</em> by <em>h</em> bytes of character codes, so <a href="#_charpad_pro">CharPad&#8217;s</a> exported map drops straight in.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">map! <em>( addr w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Use the <em>w</em> by <em>h</em> map at <em>addr</em>.</p>
+</dd>
+<dt class="hdlist1">map-col! <em>( addr&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Its colour map, same shape. Leave it unset for a one-colour world — see the cost below.</p>
+</dd>
+<dt class="hdlist1">win! <em>( x y w h&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>The window on screen the camera draws into.</p>
+</dd>
+<dt class="hdlist1">cam! <em>( x y&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Put the camera at pixel <em>x,y</em> in the map.</p>
+</dd>
+<dt class="hdlist1">cam+ <em>( dx dy&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Move it, clamped so it cannot walk off the map.</p>
+</dd>
+<dt class="hdlist1">cam-x cam-y <em>(&#8201;&#8212;&#8201;n )</em> </dt>
+<dd>
+<p>Where it is, in pixels.</p>
+</dd>
+<dt class="hdlist1">cam-start <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Turn on <code>col38</code>/<code>row24</code> and draw the first frame.</p>
+</dd>
+<dt class="hdlist1">cam-stop <em>(&#8201;&#8212;&#8201;)</em> </dt>
+<dd>
+<p>Put the display back to 40x25.</p>
+</dd>
+</dl>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>include scroll8
+the-map #64 #48 map!
+the-col map-col!
+0 0 #40 #25 win!
+cam-start
+1 1 cam+                   \ one pixel right and down: diagonal is free
+cam-stop</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Why the arithmetic looks odd.</strong> The VIC can shift the display <strong>right</strong> by 0–7 pixels and <strong>down</strong> by 0–7, and that is all — there is no shift left and no shift up. So to move the world left by one pixel you step the character window one cell on (8 pixels left) and shift 7 back to the right. Net: one pixel. Both axes are the same rule around a different neutral — x rests at 0, y at 3, because <code>$d011&#8217;s rest value is `$1b</code>:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>cell   = (cam + 7 - neutral) &gt;&gt; 3
+scroll = (neutral - cam) &amp; 7</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>cam-start</code> turns on <code>col38</code> and <code>row24</code>, which is why the screen goes a character narrower: when the offset is mid-cell the strip coming in at the edge is only part drawn, and narrowing makes the VIC paint border over exactly that strip.</p>
+</div>
+<div class="paragraph">
+<p><strong>What it costs.</strong> The window is redrawn from the map only when the camera crosses a cell boundary, so 7 frames in 8 are one register write and free. The 8th copies <code>win-h</code> rows, twice over if the map has colour. Measured on the cartridge:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">window</th>
+<th class="tableblock halign-left valign-top">per redraw</th>
+<th class="tableblock halign-left valign-top">PAL frames</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">40x25 with colour</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">43 ms</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">~2</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">40x25 no colour</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">19 ms</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">~1</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">40x16 no colour</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">11 ms</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">~0.5</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>So the colour map is not a detail — it is <strong>half the cost</strong>, and dropping it is the single biggest lever you have. At 40x25 in colour the redraw overruns its frame and the scroll pauses for two every eighth pixel; in one colour it just fits; a shorter window fits with room to spare. Scrolling a pixel every <strong>other</strong> frame makes even the worst case read as smooth, because the stall is a smaller share of the time between steps.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<code>cam!</code> redraws with <code>do &#8230;&#8203; loop</code>, so like the rest of <code>scroll</code>, drive it from the foreground rather than a callback.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Example.</strong> <code>include scroll8demo</code> then <code>scroll8demo</code> — a camera over a 64x48 map, moving a pixel a frame in whatever direction you push the joystick in port 2, diagonals included. Each 8x8 block is labelled with its own column and row digits, so you can read straight off the screen whether the camera is where it claims; hold a diagonal into a corner and it clamps cleanly instead of scrolling off the end of the map. RUN/STOP quits.</p>
 </div>
 </div>
 <div class="sect2">

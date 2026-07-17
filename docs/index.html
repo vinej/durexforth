@@ -1917,20 +1917,14 @@ case
 <dd>
 <p>Receive a string of at most u characters into the buffer that starts at addr. Return how many characters were received.</p>
 </dd>
-<dt class="hdlist1">evaluate <em>( addr len&#8201;&#8212;&#8201;)</em> </dt>
-<dd>
-<p>Evaluate the given string. Evaluate is non-standard: it interprets multi-line strings line-by-line.</p>
-</dd>
-<dt class="hdlist1">quit </dt>
-<dd>
-<p>Enter an endless loop where DurexForth interprets Forth commands from the keyboard. The word is named "quit" since it can be used to quit a program. It also does cleanup tasks like resetting I/O.</p>
-</dd>
-<dt class="hdlist1">pad <em>(&#8201;&#8212;&#8201;addr )</em> </dt>
-<dd>
-<p><em>addr</em> is the address of the <code>pad</code>, a 127-byte memory region that can be used freely by user words.
-No built-in words will modify this region.</p>
-</dd>
 </dl>
+</div>
+<div class="paragraph">
+<p><code>accept</code> is the <code>ok</code> prompt, and it edits like the BASIC screen editor, so fingers already know the keys: <kbd>CRSR ←</kbd>/<kbd>CRSR →</kbd> move within the line, <kbd>HOME</kbd> jumps to its start, <kbd>DEL</kbd> removes the character before the cursor, <kbd>INST</kbd> (shift+DEL) opens a gap, and typing <strong>overwrites</strong> under the cursor. <kbd>RETURN</kbd> accepts the whole line wherever the cursor stands. CRSR up/down are ignored — the line is the document, the screen above it is history.
+evaluate <em>( addr len&#8201;&#8212;&#8201;)</em> :: Evaluate the given string. Evaluate is non-standard: it interprets multi-line strings line-by-line.
+quit :: Enter an endless loop where DurexForth interprets Forth commands from the keyboard. The word is named "quit" since it can be used to quit a program. It also does cleanup tasks like resetting I/O.
+pad <em>(&#8201;&#8212;&#8201;addr )</em> :: <em>addr</em> is the address of the <code>pad</code>, a 127-byte memory region that can be used freely by user words.
+No built-in words will modify this region.</p>
 </div>
 </div>
 <div class="sect2">

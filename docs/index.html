@@ -1915,16 +1915,25 @@ case
 </dd>
 <dt class="hdlist1">accept <em>( addr u&#8201;&#8212;&#8201;u )</em> </dt>
 <dd>
-<p>Receive a string of at most u characters into the buffer that starts at addr. Return how many characters were received.</p>
+<p>Receive a string of at most u characters into the buffer that starts at addr. Return how many characters were received. This is a deliberately minimal reader — RETURN, DEL and printable characters — used where code asks for a short answer, such as the editor&#8217;s <code>:w</code> filename prompt.</p>
 </dd>
 </dl>
 </div>
-<div class="paragraph">
-<p><code>accept</code> is the <code>ok</code> prompt, and it edits like the BASIC screen editor, so fingers already know the keys: <kbd>CRSR ←</kbd>/<kbd>CRSR →</kbd> move within the line, <kbd>HOME</kbd> jumps to its start, <kbd>DEL</kbd> removes the character before the cursor, <kbd>INST</kbd> (shift+DEL) opens a gap, and typing <strong>overwrites</strong> under the cursor. <kbd>RETURN</kbd> accepts the whole line wherever the cursor stands. CRSR up/down are ignored — the line is the document, the screen above it is history.
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+The <code>ok</code> prompt itself does <strong>not</strong> go through <code>accept</code>: the console reads lines through the Kernal&#8217;s full-screen editor, the same input BASIC uses. So everything your fingers know from BASIC works at the prompt — CRSR keys, <kbd>INST</kbd>/<kbd>DEL</kbd>, editing anywhere on the logical line, RETURN taking the line wherever the cursor stands. (Quote mode comes along too: after an unmatched <code>"</code>, cursor keys insert reverse-video control glyphs, exactly as in BASIC — press RETURN and start over.) If cursor keys type nothing at the prompt under an emulator, the emulator is intercepting them; VICE&#8217;s "keyset" joystick bound to the arrow keys is the classic culprit.
 evaluate <em>( addr len&#8201;&#8212;&#8201;)</em> :: Evaluate the given string. Evaluate is non-standard: it interprets multi-line strings line-by-line.
 quit :: Enter an endless loop where DurexForth interprets Forth commands from the keyboard. The word is named "quit" since it can be used to quit a program. It also does cleanup tasks like resetting I/O.
 pad <em>(&#8201;&#8212;&#8201;addr )</em> :: <em>addr</em> is the address of the <code>pad</code>, a 127-byte memory region that can be used freely by user words.
-No built-in words will modify this region.</p>
+No built-in words will modify this region.
+</td>
+</tr>
+</table>
 </div>
 </div>
 <div class="sect2">

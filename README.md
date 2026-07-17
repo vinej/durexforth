@@ -8,6 +8,8 @@ Modern C64 Forth. Includes a vi clone written in Forth, a high-resolution graphi
 
 The `game-dev-features` branch turns durexForth into a game development system: interrupts (`irq!`, `raster!`), split screens, character sets and tiles, smooth scrolling in all eight directions, hardware and software sprites with transformations, keyboard matrix and joystick and 1351 mouse, SID music under interrupt (MML and GoatTracker/PSID), double and float word sets, string words, and an EasyFlash cartridge with a flash filesystem so `include` needs no disk drive at all. Everything is documented in the [manual](https://vinej.github.io/durexforth/), with a chapter on importing assets from SpritePad Pro, CharPad Pro and GoatTracker 2.
 
+**Ready-to-run builds live in [deploy/](deploy/)**: `durexforth-ef.crt` (EasyFlash — everything in flash, no disk needed; the best MiSTer experience), `durexforth.crt` (standard 16K cartridge), `durexforth.d64`/`.d71` (bootable disks with the module library), `durexforth.prg` (loadable program), and the manual as PDF. The `vice-*.bat` files at the repo root launch each one in the bundled VICE.
+
 **Status: feature-complete, in field testing before a PR.** Every module is verified in VICE and the cartridge runs on MiSTer; what remains is play-testing in real use. Known polish items — rough edges, not gaps:
 
 * **split screen**: the character wrap of a scroller lands one frame apart from the fine-scroll reset — a single-frame hiccup every 8th pixel at the seam-free default. The clean fix is double-buffering the screen with `band-screen!` and flipping at `band-sync`.

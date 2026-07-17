@@ -1,8 +1,11 @@
 *.d64
 *.prg
 build
-deploy
 /doc64/
+
+# ship the release artifacts: the deploy folder is committed,
+# and the negation lets its d64/prg through the globs above
+!/deploy/*
 
 # bundled VICE emulator: ignore everything except its README
 # (see emulator/README.md for how to supply it)
